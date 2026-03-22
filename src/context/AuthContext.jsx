@@ -71,13 +71,14 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const loginWithGoogle = async () => {
-    // redirectTo uses YOUR domain — not supabase.co
-    // This makes Google show your app name/domain on consent screen
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options : {
         redirectTo : `${window.location.origin}/auth/callback`,
-        queryParams: { prompt: 'select_account' }
+        queryParams: {
+          prompt        : 'select_account',
+          access_type   : 'offline',
+        }
       }
     });
     if (error) throw error;

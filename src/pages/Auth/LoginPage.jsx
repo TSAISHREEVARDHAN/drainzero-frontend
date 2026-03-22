@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { ConfigProvider, Button, Card, Typography, Space, Layout, Form, Input, Divider, Alert } from 'antd';
-import { GoogleOutlined, ArrowLeftOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
+import { ConfigProvider, Button, Card, Typography, Space, Layout, Alert } from 'antd';
+import { GoogleOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
@@ -8,38 +8,17 @@ const { Title, Text } = Typography;
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const { loginWithGoogle, loginWithEmail } = useAuth();
-  const [loading, setLoading]       = useState(false);
-  const [googleLoading, setGLoading]= useState(false);
-  const [error, setError]           = useState('');
-  const [form]                      = Form.useForm();
+  const { loginWithGoogle } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState('');
 
   const handleGoogleLogin = async () => {
     try {
-      setGLoading(true);
-      setError('');
-      await loginWithGoogle();
-      // Redirect handled by Google → /auth/callback → AuthCallback
-    } catch (err) {
-      setError(err.message || 'Google login failed. Please try again.');
-      setGLoading(false);
-    }
-  };
-
-  const handleEmailLogin = async (values) => {
-    try {
       setLoading(true);
       setError('');
-      const result = await loginWithEmail(values.email, values.password);
-      // loginWithEmail now returns onboardingDone
-      if (result.onboardingDone) {
-        navigate('/category-selection', { replace: true });
-      } else {
-        navigate('/onboarding', { replace: true });
-      }
+      await loginWithGoogle();
     } catch (err) {
-      setError(err.message || 'Login failed. Check your credentials.');
-    } finally {
+      setError(err.message || 'Google login failed. Please try again.');
       setLoading(false);
     }
   };
@@ -49,53 +28,65 @@ const LoginPage = () => {
       token: { colorPrimary: '#5B92E5', borderRadius: 12, colorText: '#1F2937', fontFamily: "'Outfit', sans-serif" },
       components: {
         Button: { controlHeightLG: 52, fontWeight: 600, borderRadius: 12 },
-        Input: { colorBgContainer: '#EEF3FA', colorBorder: '#B8C8E6', borderRadius: 12, controlHeight: 48 },
         Card: { paddingLG: 40, borderRadiusLG: 24, boxShadow: '0 8px 30px rgba(8,76,141,0.08)' }
       }
     }}>
       <Layout style={{ minHeight: '100vh', background: '#DCE6F5', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-        <Card style={{ maxWidth: 480, width: '100%', border: 'none' }}>
+        <Card style={{ maxWidth: 440, width: '100%', border: 'none', textAlign: 'center' }}>
 
-          <div style={{ marginBottom: 32 }}>
-            <Space align="center" size={16} style={{ marginBottom: 8 }}>
-              <ArrowLeftOutlined onClick={() => navigate('/')} style={{ fontSize: 22, color: '#084C8D', cursor: 'pointer' }} />
-              <Title level={2} style={{ margin: 0, fontWeight: 700, color: '#084C8D' }}>Login</Title>
-            </Space>
-            <Text style={{ fontSize: 16, color: '#6B7280', display: 'block' }}>
-              Access your personal fiscal optimization dashboard
+          {/* Logo */}
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ fontSize: 28, fontWeight: 800, color: '#08457E' }}>
+              Drain<span style={{ color: '#5B92E5' }}>Zero</span>
+            </div>
+          </div>
+
+          {/* Header */}
+          <div style={{ marginBottom: 36 }}>
+            <Title level={3} style={{ margin: '0 0 8px', fontWeight: 700, color: '#084C8D' }}>
+              Welcome Back
+            </Title>
+            <Text style={{ fontSize: 15, color: '#6B7280' }}>
+              Sign in to access your tax optimization dashboard
             </Text>
           </div>
 
-          {error && <Alert message={error} type="error" showIcon style={{ marginBottom: 24, borderRadius: 12 }} />}
+          {error && (
+            <Alert message={error} type="error" showIcon style={{ marginBottom: 24, borderRadius: 12, textAlign: 'left' }} />
+          )}
 
-          <Button block size="large" icon={<GoogleOutlined />} loading={googleLoading}
+          {/* Google Login Only */}
+          <Button
+            block size="large"
+            icon={<GoogleOutlined style={{ fontSize: 18 }} />}
+            loading={loading}
             onClick={handleGoogleLogin}
-            style={{ borderColor: '#B8C8E6', color: '#1F2937', height: 52, borderRadius: 12, marginBottom: 24, fontWeight: 600 }}>
+            style={{
+              height: 56, borderRadius: 12, fontWeight: 600, fontSize: 16,
+              borderColor: '#B8C8E6', color: '#1F2937',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+            }}
+          >
             Continue with Google
           </Button>
 
-          <Divider style={{ color: '#6B7280', fontSize: 13 }}>or login with email</Divider>
+          <div style={{ marginTop: 24 }}>
+            <Text style={{ color: '#6B7280', fontSize: 13 }}>
+              Don't have an account?{' '}
+              <Link to="/signup" style={{ color: '#5B92E5', fontWeight: 600 }}>Sign up free</Link>
+            </Text>
+          </div>
 
-          <Form form={form} layout="vertical" size="large" onFinish={handleEmailLogin} requiredMark={false}>
-            <Form.Item name="email"
-              rules={[{ required: true, message: 'Please enter your email' }, { type: 'email', message: 'Enter a valid email' }]}>
-              <Input prefix={<MailOutlined style={{ color: '#6B7280' }} />} placeholder="Email address" />
-            </Form.Item>
-            <Form.Item name="password"
-              rules={[{ required: true, message: 'Please enter your password' }, { min: 6, message: 'Min 6 characters' }]}>
-              <Input.Password prefix={<LockOutlined style={{ color: '#6B7280' }} />} placeholder="Password" />
-            </Form.Item>
-            <Form.Item>
-              <Button type="primary" block size="large" htmlType="submit" loading={loading}
-                style={{ height: 52, borderRadius: 12, background: '#5B92E5', border: 'none', fontWeight: 600 }}>
-                Login
-              </Button>
-            </Form.Item>
-          </Form>
+          <div style={{ marginTop: 16 }}>
+            <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/')}
+              style={{ color: '#6B7280', fontSize: 13 }}>
+              Back to Home
+            </Button>
+          </div>
 
-          <div style={{ textAlign: 'center', marginTop: 8 }}>
-            <Text style={{ color: '#6B7280' }}>
-              New here? <Link to="/signup" style={{ color: '#5B92E5', fontWeight: 600 }}>Create account</Link>
+          <div style={{ marginTop: 24, padding: '12px 16px', background: '#F2F3F4', borderRadius: 10 }}>
+            <Text style={{ color: '#9CA3AF', fontSize: 12 }}>
+              🔒 Secure login powered by Google OAuth. We never see your password.
             </Text>
           </div>
 
