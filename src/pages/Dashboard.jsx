@@ -133,23 +133,23 @@ const Dashboard = () => {
 
           {/* CTA */}
           <div style={{ textAlign: 'center' }}>
-            <div style={{ borderRadius: 32, background: '#08457E', padding: '60px 40px', display: 'inline-block', width: '100%', boxShadow: '0 20px 40px rgba(8,69,126,0.15)' }}>
-              <Space direction="vertical" size={24} style={{ width: '100%' }}>
-                <Title level={2} style={{ color: '#FFFFFF', margin: 0, fontWeight: 700 }}>Ready to Optimize?</Title>
-                <Paragraph style={{ color: '#CCF1FF', fontSize: 18, maxWidth: 600, margin: '0 auto' }}>
+            <div style={{ borderRadius: 24, background: '#08457E', padding: '40px 24px', width: '100%', boxShadow: '0 20px 40px rgba(8,69,126,0.15)', boxSizing: 'border-box' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
+                <Title level={3} style={{ color: '#FFFFFF', margin: 0, fontWeight: 700, textAlign: 'center' }}>Ready to Optimize?</Title>
+                <Paragraph style={{ color: '#CCF1FF', fontSize: 15, maxWidth: 500, margin: 0, textAlign: 'center' }}>
                   Get the complete breakdown of your tax strategy across all 10 analysis features.
                 </Paragraph>
-                <Button type="primary" icon={<DownloadOutlined />} size="large" onClick={handleDownloadReport}
-                  style={{ height: 64, padding: '0 64px', borderRadius: 50, fontSize: 20, background: '#5B92E5', border: 'none', fontWeight: 700, marginTop: 12, boxShadow: '0 10px 20px rgba(91,146,229,0.3)' }}>
+                <Button type="primary" icon={<DownloadOutlined />} onClick={handleDownloadReport}
+                  style={{ height: 52, width: '100%', maxWidth: 360, borderRadius: 14, fontSize: 16, background: '#5B92E5', border: 'none', fontWeight: 700, boxShadow: '0 8px 20px rgba(91,146,229,0.3)' }}>
                   Download Analysis Report
                 </Button>
-              </Space>
+              </div>
             </div>
           </div>
 
           {/* Security Note */}
           <div style={{ marginTop: 80, textAlign: 'center', marginBottom: 40 }}>
-            <Space style={{ background: '#FFFFFF', padding: '16px 32px', borderRadius: 50, boxShadow: '0 4px 20px rgba(0,0,0,0.04)' }}>
+            <Space style={{ background: '#FFFFFF', padding: '12px 20px', borderRadius: 50, boxShadow: '0 4px 20px rgba(0,0,0,0.04)', flexWrap: 'wrap', justifyContent: 'center' }}>
               <LockFilled style={{ color: '#10B981', fontSize: 20 }} />
               <Text style={{ fontWeight: 600, color: '#08457E', fontSize: 15 }}>
                 Your data is secure and private. Analysis is visible only to you.

@@ -45,7 +45,17 @@ const TaxReport = () => {
   const taxNew  = backendResult?.newRegime?.totalTax ?? (taxableNew<=700000?0:Math.round(calcNew(taxableNew)*1.04));
   const better  = taxOld <= taxNew ? 'Old Regime' : 'New Regime';
   const saving  = Math.abs(taxOld - taxNew);
-  const health  = backendResult?.healthScore ?? 75;
+  // Real health score from backend, or compute from form data, never fake
+  const computeLocalHealth = () => {
+    let score = 100;
+    if (d80C < 150000) score -= 15;
+    if (d80D < 25000)  score -= 10;
+    if (dNPS < 50000)  score -= 10;
+    if (dHRA === 0 && salary > 0) score -= 5;
+    return Math.max(30, score);
+  };
+  const hasBackendHealth = backendResult?.healthScore !== undefined && backendResult?.healthScore !== null;
+  const health = hasBackendHealth ? backendResult.healthScore : (salary > 0 ? computeLocalHealth() : null);
   const leakage = backendResult?.totalLeakage ?? 0;
   const gaps    = backendResult?.leakageGaps  ?? [];
   const today   = new Date().toLocaleDateString('en-IN', { day:'2-digit', month:'long', year:'numeric' });

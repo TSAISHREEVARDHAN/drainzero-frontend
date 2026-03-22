@@ -8,6 +8,7 @@ import {
   InfoCircleOutlined, RiseOutlined, FallOutlined
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import Navbar from '../../components/Navbar';
 import TaxAssistantChatbot from '../../components/TaxAssistantChatbot';
 

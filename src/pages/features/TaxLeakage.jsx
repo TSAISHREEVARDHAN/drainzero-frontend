@@ -26,14 +26,29 @@ const TaxLeakage = () => {
 
     const { category, subcategory, ownership, formData, backendResult } = location.state || {};
 
-    // Logic: Identify potential missed deductions
-    // Logic: Identify potential missed deductions
+    // Use backend leakage gaps if available, else compute locally
+    const backendGaps = backendResult?.leakageGaps || [];
+    const backendTotalLeakage = backendResult?.totalLeakage || 0;
+    
     const missed80C = Math.max(0, 150000 - (formData?.deduction80C || 0));
     const slabRate = (formData?.annualSalary || 0) > 1500000 ? 0.30 : 0.20;
 
     let leakageItems = [];
     let totalLeakage = 0;
+    
+    // If backend gave us real leakage gaps, use those instead
+    if (backendGaps.length > 0) {
+        leakageItems = backendGaps.map(g => ({
+            title: g.label || g.section || 'Tax Saving Opportunity',
+            description: g.description || `Utilize this deduction to reduce your tax liability.`,
+            potential: g.taxSaved || 0,
+            tag: g.section || 'Deduction'
+        }));
+        totalLeakage = backendTotalLeakage;
+    }
 
+    // Local computation fallback when no backend data
+    if (backendGaps.length === 0) {
     // 1. 80C Leakage
     if (missed80C > 1000) {
         const potentialSave = missed80C * slabRate;

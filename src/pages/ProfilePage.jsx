@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   ConfigProvider, Card, Typography, Form, Input, Select,
-  Radio, Button, Space, Alert, message, Row, Col, Avatar, Divider
+  Radio, Button, Alert, message, Row, Col, Avatar, Tag
 } from 'antd';
-import {
-  UserOutlined, SaveOutlined, ArrowLeftOutlined, EnvironmentOutlined
-} from '@ant-design/icons';
+import { UserOutlined, SaveOutlined, ArrowLeftOutlined, EnvironmentOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../config/supabase';
@@ -23,35 +21,53 @@ const STATES = [
 ];
 
 const ProfilePage = () => {
-  const navigate  = useNavigate();
+  const navigate = useNavigate();
   const { user, userProfile, refreshProfile } = useAuth();
   const [form]    = Form.useForm();
-  const [loading, setLoading] = useState(false);
   const [saving,  setSaving]  = useState(false);
   const [error,   setError]   = useState('');
+  const [loaded,  setLoaded]  = useState(false);
 
   useEffect(() => {
-    if (userProfile) {
-      form.setFieldsValue({
-        name           : userProfile.name            || '',
-        age            : userProfile.age             || '',
-        gender         : userProfile.gender          || '',
-        marital_status : userProfile.marital_status  || '',
-        employment_type: userProfile.employment_type || '',
-        sector         : userProfile.sector          || '',
-        profession     : userProfile.profession      || '',
-        state          : userProfile.state           || '',
-        city           : userProfile.city            || '',
-      });
-    }
-  }, [userProfile]);
+    const loadProfile = async () => {
+      // Try from context first
+      let profile = userProfile;
+      
+      // If not in context, fetch directly
+      if (!profile && user) {
+        const { data } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', user.id)
+          .maybeSingle();
+        profile = data;
+      }
+
+      if (profile) {
+        form.setFieldsValue({
+          name           : profile.name            || '',
+          age            : profile.age             || '',
+          gender         : profile.gender          || '',
+          marital_status : profile.marital_status  || '',
+          employment_type: profile.employment_type || '',
+          sector         : profile.sector          || '',
+          profession     : profile.profession      || '',
+          state          : profile.state           || '',
+          city           : profile.city            || '',
+        });
+      }
+      setLoaded(true);
+    };
+
+    loadProfile();
+  }, [userProfile, user]);
 
   const handleSave = async (values) => {
     try {
       setSaving(true);
       setError('');
 
-      const isMetro = ['Mumbai','Delhi','Bangalore','Chennai','Kolkata','Hyderabad']
+      const isMetro = ['Mumbai','Delhi','Bangalore','Bengaluru','Chennai','Kolkata','Hyderabad']
         .some(c => values.city?.toLowerCase().includes(c.toLowerCase()));
 
       const { error: err } = await supabase.from('users').upsert({
@@ -72,9 +88,8 @@ const ProfilePage = () => {
       }, { onConflict: 'id' });
 
       if (err) throw new Error(err.message);
-
       await refreshProfile();
-      message.success('Profile updated successfully!');
+      message.success('Profile updated!');
     } catch (err) {
       setError(err.message || 'Failed to save. Please try again.');
     } finally {
@@ -82,100 +97,94 @@ const ProfilePage = () => {
     }
   };
 
-  const labelStyle = { color: '#08457E', fontWeight: 600, fontSize: 13 };
+  const lbl = { color: '#08457E', fontWeight: 600, fontSize: 13 };
 
   return (
     <ConfigProvider theme={{
       token: { colorPrimary: '#5B92E5', borderRadius: 12, fontFamily: "'Outfit', sans-serif" },
       components: {
         Input: { colorBgContainer: '#F8FAFC', colorBorder: '#E2E8F0', controlHeight: 44 },
-        Select: { controlHeight: 44 },
       }
     }}>
       <div style={{ minHeight: '100vh', background: '#F2F3F4' }}>
         <Navbar />
-        <div style={{ maxWidth: 720, margin: '0 auto', padding: '32px 20px' }}>
+        <div style={{ maxWidth: 720, margin: '0 auto', padding: '24px 16px', boxSizing: 'border-box' }}>
 
           <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}
-            style={{ marginBottom: 24, borderRadius: 10, color: '#08457E', borderColor: '#B8C8E6' }}>
+            style={{ marginBottom: 20, borderRadius: 10, color: '#08457E', borderColor: '#B8C8E6' }}>
             Back
           </Button>
 
-          {/* Profile Header */}
-          <Card style={{ borderRadius: 20, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', marginBottom: 20 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
-              <Avatar size={72} style={{ background: '#EEF3FA', color: '#08457E', fontSize: 28, fontWeight: 700 }}>
+          {/* Header card */}
+          <Card style={{ borderRadius: 20, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+              <Avatar size={64} style={{ background: '#EEF3FA', color: '#08457E', fontSize: 24, fontWeight: 700, flexShrink: 0 }}>
                 {userProfile?.name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase()}
               </Avatar>
-              <div>
-                <Title level={4} style={{ margin: 0, color: '#08457E' }}>{userProfile?.name || 'Your Profile'}</Title>
-                <Text style={{ color: '#6B7280', fontSize: 14 }}>{user?.email}</Text>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <Title level={4} style={{ margin: '0 0 4px', color: '#08457E' }}>{userProfile?.name || 'Your Profile'}</Title>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <LockOutlined style={{ color: '#9CA3AF', fontSize: 12 }} />
+                  <Text style={{ color: '#9CA3AF', fontSize: 13 }}>{user?.email}</Text>
+                  <Tag color="blue" style={{ borderRadius: 20, fontSize: 11 }}>Google Account</Tag>
+                </div>
                 {userProfile?.employment_type && (
-                  <div style={{ marginTop: 4 }}>
-                    <Text style={{ color: '#5B92E5', fontSize: 13, fontWeight: 600 }}>
-                      {userProfile.employment_type} · {userProfile.sector || ''}
-                    </Text>
-                  </div>
+                  <Text style={{ color: '#5B92E5', fontSize: 13, fontWeight: 600 }}>
+                    {userProfile.employment_type} · {userProfile.sector || ''} · {userProfile.city || ''}
+                  </Text>
                 )}
               </div>
             </div>
           </Card>
 
-          {/* Edit Form */}
+          {/* Edit form */}
           <Card style={{ borderRadius: 20, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
-            <Title level={4} style={{ color: '#08457E', marginBottom: 24 }}>Edit Personal Information</Title>
+            <Title level={5} style={{ color: '#08457E', marginBottom: 20 }}>Edit Personal Information</Title>
 
-            {error && <Alert message={error} type="error" showIcon style={{ marginBottom: 20, borderRadius: 10 }} />}
+            {error && <Alert message={error} type="error" showIcon style={{ marginBottom: 16, borderRadius: 10 }} />}
 
             <Form form={form} layout="vertical" onFinish={handleSave} requiredMark={false}>
 
-              <Divider orientation="left" style={{ color: '#6B7280', fontSize: 12 }}>PERSONAL DETAILS</Divider>
-
-              <Row gutter={[16, 0]}>
-                <Col xs={24} md={12}>
-                  <Form.Item name="name" label={<Text style={labelStyle}>Full Name</Text>}
-                    rules={[{ required: true, message: 'Please enter your name' }]}>
-                    <Input prefix={<UserOutlined style={{ color: '#9CA3AF' }} />} placeholder="Your full name" />
+              {/* Personal */}
+              <Row gutter={[12, 0]}>
+                <Col xs={24} md={14}>
+                  <Form.Item name="name" label={<Text style={lbl}>Full Name</Text>}
+                    rules={[{ required: true, message: 'Required' }]}>
+                    <Input prefix={<UserOutlined style={{ color: '#9CA3AF' }} />} placeholder="Your full name" style={{ borderRadius: 10 }} />
                   </Form.Item>
                 </Col>
-                <Col xs={24} md={12}>
-                  <Form.Item name="age" label={<Text style={labelStyle}>Age</Text>}
+                <Col xs={24} md={10}>
+                  <Form.Item name="age" label={<Text style={lbl}>Age</Text>}
                     rules={[{ required: true, message: 'Required' }]}>
-                    <Input type="number" min={18} max={100} placeholder="e.g. 28" />
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              <Row gutter={[16, 0]}>
-                <Col xs={24} md={12}>
-                  <Form.Item name="gender" label={<Text style={labelStyle}>Gender</Text>}
-                    rules={[{ required: true, message: 'Required' }]}>
-                    <Radio.Group buttonStyle="solid">
-                      <Radio.Button value="Male">Male</Radio.Button>
-                      <Radio.Button value="Female">Female</Radio.Button>
-                      <Radio.Button value="Other">Other</Radio.Button>
-                    </Radio.Group>
-                  </Form.Item>
-                </Col>
-                <Col xs={24} md={12}>
-                  <Form.Item name="marital_status" label={<Text style={labelStyle}>Marital Status</Text>}
-                    rules={[{ required: true, message: 'Required' }]}>
-                    <Radio.Group buttonStyle="solid">
-                      <Radio.Button value="Single">Single</Radio.Button>
-                      <Radio.Button value="Married">Married</Radio.Button>
-                      <Radio.Button value="Divorced">Divorced</Radio.Button>
-                    </Radio.Group>
+                    <Input type="number" min={18} max={100} placeholder="e.g. 28" style={{ borderRadius: 10 }} />
                   </Form.Item>
                 </Col>
               </Row>
 
-              <Divider orientation="left" style={{ color: '#6B7280', fontSize: 12 }}>EMPLOYMENT</Divider>
+              <Form.Item name="gender" label={<Text style={lbl}>Gender</Text>}
+                rules={[{ required: true, message: 'Required' }]}>
+                <Radio.Group buttonStyle="solid" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {['Male','Female','Other'].map(g => (
+                    <Radio.Button key={g} value={g} style={{ borderRadius: 8 }}>{g}</Radio.Button>
+                  ))}
+                </Radio.Group>
+              </Form.Item>
 
-              <Row gutter={[16, 0]}>
+              <Form.Item name="marital_status" label={<Text style={lbl}>Marital Status</Text>}
+                rules={[{ required: true, message: 'Required' }]}>
+                <Radio.Group buttonStyle="solid" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {['Single','Married','Divorced','Widowed'].map(s => (
+                    <Radio.Button key={s} value={s} style={{ borderRadius: 8 }}>{s}</Radio.Button>
+                  ))}
+                </Radio.Group>
+              </Form.Item>
+
+              {/* Employment */}
+              <Row gutter={[12, 0]}>
                 <Col xs={24} md={12}>
-                  <Form.Item name="employment_type" label={<Text style={labelStyle}>Employment Type</Text>}
+                  <Form.Item name="employment_type" label={<Text style={lbl}>Employment Type</Text>}
                     rules={[{ required: true, message: 'Required' }]}>
-                    <Select placeholder="Select type">
+                    <Select placeholder="Select type" style={{ borderRadius: 10 }}>
                       {['Salaried','Self-Employed','Freelancer','Business Owner','Student','Retired'].map(t => (
                         <Select.Option key={t} value={t}>{t}</Select.Option>
                       ))}
@@ -183,9 +192,9 @@ const ProfilePage = () => {
                   </Form.Item>
                 </Col>
                 <Col xs={24} md={12}>
-                  <Form.Item name="sector" label={<Text style={labelStyle}>Sector / Industry</Text>}
+                  <Form.Item name="sector" label={<Text style={lbl}>Sector</Text>}
                     rules={[{ required: true, message: 'Required' }]}>
-                    <Select placeholder="Select sector">
+                    <Select placeholder="Select sector" style={{ borderRadius: 10 }}>
                       {['Government','IT/Software','Banking/Finance','Healthcare','Education','Manufacturing','Real Estate','Retail/Trade','Agriculture','Legal/CA','Media/Arts','Startup','Defence','Other'].map(s => (
                         <Select.Option key={s} value={s}>{s}</Select.Option>
                       ))}
@@ -194,38 +203,35 @@ const ProfilePage = () => {
                 </Col>
               </Row>
 
-              <Form.Item name="profession" label={<Text style={labelStyle}>Job Title <span style={{ color: '#9CA3AF', fontWeight: 400 }}>(Optional)</span></Text>}>
-                <Input placeholder="e.g. Software Engineer, CA, Teacher" />
+              <Form.Item name="profession" label={<Text style={{ ...lbl, fontWeight: 400, color: '#6B7280' }}>Job Title (Optional)</Text>}>
+                <Input placeholder="e.g. Software Engineer, CA" style={{ borderRadius: 10 }} />
               </Form.Item>
 
-              <Divider orientation="left" style={{ color: '#6B7280', fontSize: 12 }}>LOCATION</Divider>
-
-              <Row gutter={[16, 0]}>
+              {/* Location */}
+              <Row gutter={[12, 0]}>
                 <Col xs={24} md={12}>
-                  <Form.Item name="state" label={<Text style={labelStyle}>State</Text>}
+                  <Form.Item name="state" label={<Text style={lbl}>State</Text>}
                     rules={[{ required: true, message: 'Required' }]}>
-                    <Select showSearch placeholder="Select state">
+                    <Select showSearch placeholder="Select state" style={{ borderRadius: 10 }}>
                       {STATES.map(s => <Select.Option key={s} value={s}>{s}</Select.Option>)}
                     </Select>
                   </Form.Item>
                 </Col>
                 <Col xs={24} md={12}>
-                  <Form.Item name="city" label={<Text style={labelStyle}>City</Text>}
+                  <Form.Item name="city" label={<Text style={lbl}>City</Text>}
                     rules={[{ required: true, message: 'Required' }]}>
-                    <Input prefix={<EnvironmentOutlined style={{ color: '#9CA3AF' }} />} placeholder="e.g. Hyderabad" />
+                    <Input prefix={<EnvironmentOutlined style={{ color: '#9CA3AF' }} />} placeholder="e.g. Hyderabad" style={{ borderRadius: 10 }} />
                   </Form.Item>
                 </Col>
               </Row>
 
-              <div style={{ marginTop: 8 }}>
-                <Button
-                  type="primary" htmlType="submit" size="large"
-                  icon={<SaveOutlined />} loading={saving}
-                  style={{ height: 48, borderRadius: 12, background: '#08457E', border: 'none', fontWeight: 600, paddingLeft: 32, paddingRight: 32 }}
-                >
-                  Save Changes
-                </Button>
-              </div>
+              <Button
+                type="primary" htmlType="submit" size="large"
+                icon={<SaveOutlined />} loading={saving}
+                style={{ height: 48, borderRadius: 12, background: '#08457E', border: 'none', fontWeight: 600, width: '100%' }}
+              >
+                Save Changes
+              </Button>
             </Form>
           </Card>
         </div>

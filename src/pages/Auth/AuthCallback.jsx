@@ -10,18 +10,17 @@ const AuthCallback = () => {
   const [status, setStatus] = useState('Completing sign in...');
 
   useEffect(() => {
-    const handleAuth = async () => {
+    const handle = async () => {
       try {
-        // With implicit flow, Supabase auto-detects token in URL hash
-        // Just wait a moment then check session
         setStatus('Completing sign in...');
         
-        await new Promise(r => setTimeout(r, 1000));
+        // Wait for Supabase to process the URL hash
+        await new Promise(r => setTimeout(r, 1500));
 
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const { data: { session } } = await supabase.auth.getSession();
 
-        if (error || !session) {
-          console.error('No session:', error?.message);
+        if (!session) {
+          setStatus('Session not found, redirecting...');
           navigate('/login', { replace: true });
           return;
         }
@@ -48,7 +47,7 @@ const AuthCallback = () => {
       }
     };
 
-    handleAuth();
+    handle();
   }, []);
 
   return (
