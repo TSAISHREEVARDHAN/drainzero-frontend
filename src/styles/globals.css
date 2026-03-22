@@ -1,0 +1,81 @@
+@import './theme.css';
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background-color: #F2F3F4;
+  color: #1F2937;
+  font-family: 'Outfit', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #F2F3F4; }
+::-webkit-scrollbar-thumb { background: #B8C8E6; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #5B92E5; }
+
+/* ── Mobile Fixes ── */
+@media (max-width: 768px) {
+
+  /* Ant Layout padding fix */
+  .ant-layout { padding: 16px 12px !important; }
+
+  /* Cards */
+  .ant-card-body { padding: 20px 16px !important; }
+
+  /* Typography */
+  .ant-typography h1 { font-size: 1.8rem !important; }
+  .ant-typography h2 { font-size: 1.4rem !important; }
+
+  /* Tables scroll on mobile */
+  .ant-table-wrapper { overflow-x: auto; }
+
+  /* Buttons full width on mobile */
+  .mobile-full { width: 100% !important; }
+
+  /* Form items */
+  .ant-form-item { margin-bottom: 16px !important; }
+
+  /* Radio groups wrap */
+  .ant-radio-group { flex-wrap: wrap !important; }
+  .ant-radio-button-wrapper { margin-bottom: 8px; }
+
+  /* Space wrap */
+  .ant-space { flex-wrap: wrap !important; }
+
+  /* Dashboard cards */
+  .feature-card { padding: 24px 20px !important; }
+
+  /* Collapse panels */
+  .ant-collapse-header { padding: 14px 16px !important; }
+  .ant-collapse-content-box { padding: 0 16px 12px !important; }
+
+  /* Stats grid */
+  .ant-statistic-content-value { font-size: 1.4rem !important; }
+
+  /* Input number width */
+  .ant-input-number { width: 100% !important; }
+
+  /* Select width */
+  .ant-select { width: 100% !important; }
+
+  /* Steps mobile */
+  .ant-steps { flex-direction: column !important; }
+  .ant-steps-item { flex: none !important; }
+}
+
+@media (max-width: 480px) {
+  .ant-layout { padding: 12px 8px !important; }
+  .ant-card-body { padding: 16px 12px !important; }
+  .ant-typography h1 { font-size: 1.5rem !important; }
+  .ant-typography h2 { font-size: 1.2rem !important; }
+}
+
+/* ── Print Styles ── */
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff !important; }
+  @page { margin: 15mm; size: A4; }
+}

@@ -1,0 +1,19 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# ── Proxy Supabase auth through YOUR domain ──────────────────────
+# This makes Google OAuth show YOUR app domain instead of supabase.co
+# Replace YOUR_PROJECT_ID with your actual Supabase project ID
+# (found in your Supabase URL: https://YOUR_PROJECT_ID.supabase.co)
+[[redirects]]
+  from   = "/auth/v1/*"
+  to     = "https://rgiryoltdmbstwdyhqsz.supabase.co/auth/v1/:splat"
+  status = 200
+  force  = true
+
+# ── SPA routing — must be last ───────────────────────────────────
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200

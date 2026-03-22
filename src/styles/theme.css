@@ -1,0 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap');
+
+:root {
+  --bg-page         : #F2F3F4;
+  --bg-card         : #FFFFFF;
+  --accent-primary  : #5B92E5;
+  --accent-dark     : #08457E;
+  --text-primary    : #1F2937;
+  --text-secondary  : #6B7280;
+  --border          : #B8C8E6;
+  --input-bg        : #EEF3FA;
+  --success         : #10B981;
+  --warning         : #F59E0B;
+  --error           : #EF4444;
+}
+
+* { font-family: 'Outfit', sans-serif; box-sizing: border-box; }
+
+body {
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #F2F3F4; }
+::-webkit-scrollbar-thumb { background: #B8C8E6; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #5B92E5; }
+
+.ant-btn-primary {
+  background-color: #5B92E5 !important;
+  border-color: #5B92E5 !important;
+}
+.ant-btn-primary:hover {
+  background-color: #084C8D !important;
+  border-color: #084C8D !important;
+}
+.feature-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(8,69,126,0.08) !important;
+}
