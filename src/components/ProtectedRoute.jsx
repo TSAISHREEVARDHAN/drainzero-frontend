@@ -7,18 +7,34 @@ import { Spin } from 'antd';
 const ProtectedRoute = ({ children, requireOnboarding = true }) => {
   const { user, loading, onboardingDone } = useAuth();
   const location = useLocation();
-  const [checking, setChecking] = useState(true);
-  const [hasSession, setHasSession] = useState(false);
+  const [sessionState, setSessionState] = useState({ checked: false, hasSession: false, onboardingOk: false });
 
   useEffect(() => {
-    // Double-check session directly from Supabase for mobile browsers
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setHasSession(!!session);
-      setChecking(false);
-    });
-  }, []);
+    const check = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          setSessionState({ checked: true, hasSession: false, onboardingOk: false });
+          return;
+        }
+        // Directly check onboarding from DB
+        const { data: profile } = await supabase
+          .from('users')
+          .select('onboarding_done, onboarding_complete')
+          .eq('id', session.user.id)
+          .maybeSingle();
 
-  if (loading || checking) {
+        const done = !!(profile?.onboarding_done || profile?.onboarding_complete);
+        setSessionState({ checked: true, hasSession: true, onboardingOk: done });
+      } catch {
+        setSessionState({ checked: true, hasSession: false, onboardingOk: false });
+      }
+    };
+    check();
+  }, [location.pathname]); // re-check on every navigation
+
+  // Show spinner while either context or direct check is loading
+  if (loading || !sessionState.checked) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#F2F3F4' }}>
         <Spin size="large" />
@@ -26,14 +42,15 @@ const ProtectedRoute = ({ children, requireOnboarding = true }) => {
     );
   }
 
-  // Use both context user and direct session check
-  const isLoggedIn = !!(user || hasSession);
-
+  // Not logged in → login
+  const isLoggedIn = !!(user || sessionState.hasSession);
   if (!isLoggedIn) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (requireOnboarding && !onboardingDone) {
+  // Check onboarding — use EITHER context OR direct DB check
+  const isOnboarded = onboardingDone || sessionState.onboardingOk;
+  if (requireOnboarding && !isOnboarded) {
     return <Navigate to="/onboarding" replace />;
   }
 

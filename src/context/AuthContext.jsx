@@ -8,7 +8,7 @@ export const AuthProvider = ({ children }) => {
   const [loading,        setLoading]        = useState(true);
   const [onboardingDone, setOnboardingDone] = useState(false);
   const [userProfile,    setUserProfile]    = useState(null);
-  const initializedRef                      = useRef(false);
+  const initRef                             = useRef(false);
 
   const checkOnboarding = async (uid) => {
     try {
@@ -18,26 +18,25 @@ export const AuthProvider = ({ children }) => {
         .eq('id', uid)
         .maybeSingle();
 
-      if (!data) {
-        setOnboardingDone(false);
-        setUserProfile(null);
-        return false;
-      }
+      if (!data) { setOnboardingDone(false); setUserProfile(null); return false; }
+
       const done = !!(data.onboarding_done || data.onboarding_complete);
       setOnboardingDone(done);
       setUserProfile(data);
       return done;
-    } catch {
-      setOnboardingDone(false);
-      return false;
+    } catch (e) {
+      console.warn('checkOnboarding error:', e.message);
+      // On error - don't log out, just assume onboarding done
+      setOnboardingDone(true);
+      return true;
     }
   };
 
   useEffect(() => {
-    if (initializedRef.current) return;
-    initializedRef.current = true;
+    if (initRef.current) return;
+    initRef.current = true;
 
-    // Check existing session on load
+    // 1. Check existing session immediately
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       const u = session?.user ?? null;
       setUser(u);
@@ -45,18 +44,24 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     });
 
-    // Listen for auth changes
+    // 2. Listen for changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // Ignore these events to prevent loops
       if (event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') return;
+
       const u = session?.user ?? null;
       setUser(u);
-      if (u && (event === 'SIGNED_IN' || event === 'USER_UPDATED')) {
+
+      if (event === 'SIGNED_IN' && u) {
         await checkOnboarding(u.id);
+        setLoading(false);
       } else if (event === 'SIGNED_OUT') {
         setOnboardingDone(false);
         setUserProfile(null);
+        setLoading(false);
+      } else if (event === 'USER_UPDATED' && u) {
+        await checkOnboarding(u.id);
       }
-      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -66,8 +71,8 @@ export const AuthProvider = ({ children }) => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options : {
-        redirectTo  : `${window.location.origin}/auth/callback`,
-        queryParams : { prompt: 'select_account' },
+        redirectTo : `${window.location.origin}/auth/callback`,
+        queryParams: { prompt: 'select_account' },
       }
     });
     if (error) throw error;
