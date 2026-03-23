@@ -1,9 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
-import { supabase } from '../../config/supabase';
+import { supabase } from '../config/supabase';
 
 const AuthContext = createContext(null);
 
-// Try to read cached session synchronously from localStorage
 const getCachedSession = () => {
   try {
     const raw = localStorage.getItem('drainzero-session');
@@ -97,8 +96,8 @@ export const AuthProvider = ({ children }) => {
   const loginWithGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo  : `${window.location.origin}/auth/v1/callback`, // ✅ fixed
+      options : {
+        redirectTo  : `${window.location.origin}/auth/callback`, // ✅ fixed
         queryParams : { prompt: 'select_account' },
       }
     });
