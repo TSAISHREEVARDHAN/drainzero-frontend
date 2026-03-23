@@ -3,16 +3,13 @@ import { supabase } from '../config/supabase';
 
 const AuthContext = createContext(null);
 
-// Try to read cached session synchronously from localStorage
 const getCachedSession = () => {
   try {
     const raw = localStorage.getItem('drainzero-session');
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    // Check all possible Supabase storage formats
     const session = parsed?.currentSession || parsed?.session || parsed;
     if (session?.access_token && session?.user) return session;
-    // Also try keys with suffix
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key && (key.includes('supabase') || key.includes('drainzero'))) {
@@ -30,10 +27,9 @@ const getCachedSession = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  // Start with cached session so page doesn't flash on refresh
   const cachedSession = getCachedSession();
   const [user,           setUser]           = useState(cachedSession?.user ?? null);
-  const [loading,        setLoading]        = useState(!cachedSession); // skip loading if cached
+  const [loading,        setLoading]        = useState(!cachedSession);
   const [onboardingDone, setOnboardingDone] = useState(false);
   const [userProfile,    setUserProfile]    = useState(null);
   const initRef                             = useRef(false);
@@ -52,7 +48,6 @@ export const AuthProvider = ({ children }) => {
       setUserProfile(data);
       return done;
     } catch {
-      // On DB error — assume onboarding done to avoid redirecting away
       setOnboardingDone(true);
       return true;
     }
@@ -63,20 +58,16 @@ export const AuthProvider = ({ children }) => {
     initRef.current = true;
 
     const init = async () => {
-      // If we have a cached session, check onboarding in background
       if (cachedSession?.user) {
         checkOnboarding(cachedSession.user.id);
-        // Don't await — let page render while onboarding loads
       }
 
-      // Verify session with Supabase (async)
       const { data: { session } } = await supabase.auth.getSession();
       const u = session?.user ?? null;
       setUser(u);
       if (u) {
         await checkOnboarding(u.id);
       } else if (!u && cachedSession?.user) {
-        // Session expired — clear
         setOnboardingDone(false);
         setUserProfile(null);
       }
@@ -106,7 +97,7 @@ export const AuthProvider = ({ children }) => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options : {
-        redirectTo  : `${window.location.origin}/auth/v1/callback`,
+        redirectTo  : `${window.location.origin}/auth/callback`, // ✅ fixed
         queryParams : { prompt: 'select_account' },
       }
     });
