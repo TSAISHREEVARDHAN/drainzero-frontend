@@ -169,7 +169,7 @@ const CategorySelection = () => {
                         }}>
                             <div>
                                 <Text strong style={{ color: '#08457E', fontSize: 16 }}>
-                                    Welcome back, {userProfile.name}! 👋
+                                    Welcome back, {userProfile.name}! 
                                 </Text>
                                 <div style={{ color: '#6B7280', fontSize: 13, marginTop: 4 }}>
                                     Your last analysis: Health Score <strong style={{ color: '#5B92E5' }}>{lastResult.health_score}/100</strong>

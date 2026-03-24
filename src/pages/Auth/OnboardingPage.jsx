@@ -387,7 +387,7 @@ const OnboardingPage = () => {
       <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #DCE6F5 0%, #EEF3FA 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', boxSizing: 'border-box' }}>
         <div style={{ maxWidth: 560, width: '100%' }}>
           <div style={{ textAlign: 'center', marginBottom: 32 }}>
-            <Title level={2} style={{ color: '#08457E', fontWeight: 800, margin: 0 }}>Welcome to DrainZero 👋</Title>
+            <Title level={2} style={{ color: '#08457E', fontWeight: 800, margin: 0 }}>Welcome to DrainZero </Title>
             <Paragraph style={{ color: '#6B7280', fontSize: 16, marginTop: 8 }}>
               Let's set up your profile for a personalized tax analysis.
             </Paragraph>
