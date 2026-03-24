@@ -115,3 +115,37 @@ body {
   body { background: #fff !important; }
   @page { margin: 12mm; size: A4; }
 }
+
+/* ── Global button smoothness ── */
+.ant-btn {
+  transition: all 0.18s ease !important;
+}
+.ant-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.10) !important;
+}
+.ant-btn:active {
+  transform: translateY(0px) scale(0.98);
+}
+.ant-btn-primary:hover {
+  filter: brightness(1.08);
+}
+
+/* ── Card hover smoothness ── */
+.ant-card {
+  transition: box-shadow 0.2s ease, transform 0.2s ease !important;
+}
+
+/* ── Input focus smoothness ── */
+.ant-input:focus,
+.ant-input-focused,
+.ant-input-number:focus,
+.ant-select-focused .ant-select-selector {
+  border-color: #5B92E5 !important;
+  box-shadow: 0 0 0 2px rgba(91,146,229,0.15) !important;
+}
+
+/* ── Prevent layout jump on spinner ── */
+.ant-spin-nested-loading {
+  transition: opacity 0.2s ease;
+}

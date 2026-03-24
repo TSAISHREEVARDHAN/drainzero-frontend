@@ -122,25 +122,27 @@ const ProfilePage = () => {
     try {
       setSavingIncome(true);
       setIncomeError('');
-      const values = incomeForm.getFieldsValue();
-      const salary = values.annualSalary || 0;
+      const values  = incomeForm.getFieldsValue();
+      // Merge bonus into gross_salary to avoid schema issues
+      const base    = values.annualSalary || 0;
+      const bonus   = values.bonus || 0;
+      const salary  = base + bonus;
       const { error: err } = await supabase.from('income_profile').upsert({
         user_id          : user.id,
         gross_salary     : salary,
         basic_da         : salary * 0.40,
         hra_received     : salary * 0.20,
-        bonus            : values.bonus           || 0,
         other_income     : values.otherIncome      || 0,
         section_80c      : values.deduction80C     || 0,
         section_80d      : values.deduction80D     || 0,
         nps_personal     : values.deductionNPS     || 0,
         hra_deduction    : values.hraDeduction     || 0,
-        professional_tax : values.professionalTax  || 2500,
+        professional_tax : values.professionalTax  || 0,
         preferred_regime : values.regimePreference || 'Auto Suggest',
         updated_at       : new Date().toISOString(),
       }, { onConflict: 'user_id' });
       if (err) throw new Error(err.message);
-      message.success('Income & deductions saved! All features will use the updated values.');
+      message.success('Saved! All features will now use these updated values.');
     } catch (err) {
       setIncomeError(err.message);
     } finally {

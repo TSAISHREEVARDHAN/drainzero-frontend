@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Card, Input, Button, Typography, Space, Tag } from 'antd';
+import { Input, Button, Typography, Space, Tag } from 'antd';
 import { RobotOutlined, UserOutlined, SendOutlined, DeleteOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext';
 import { askAgent, clearAgentHistory } from '../config/api';
@@ -7,34 +7,38 @@ import { askAgent, clearAgentHistory } from '../config/api';
 const { Title, Text } = Typography;
 
 const ACTION_CARDS = [
-  { label: 'Which regime saves more?',   icon: '⚖️' },
-  { label: 'How to maximize 80C?',       icon: '💰' },
-  { label: 'Am I paying too much tax?',  icon: '🔍' },
-  { label: 'What is LTCG harvesting?',   icon: '📈' },
+  { label: 'Which regime saves more?',  icon: '⚖️' },
+  { label: 'How to maximize 80C?',      icon: '💰' },
+  { label: 'Am I paying too much tax?', icon: '🔍' },
+  { label: 'What is LTCG harvesting?',  icon: '📈' },
 ];
 
-// Typing dots animation component
-const TypingIndicator = () => (
+// Minimal pulse loading — just 3 small dots, clean and simple
+const TypingDots = () => (
   <div style={{
-    display: 'inline-flex', alignItems: 'center', gap: 8,
-    padding: '12px 16px', background: '#F2F3F4',
-    borderRadius: 16, borderBottomLeftRadius: 4, float: 'left', clear: 'both'
+    display: 'flex', alignItems: 'center', gap: 10,
+    padding: '10px 14px',
+    background: '#F2F3F4',
+    borderRadius: '16px 16px 16px 4px',
+    width: 'fit-content',
   }}>
-    <RobotOutlined style={{ color: '#084C8D', fontSize: 15 }} />
-    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+    <RobotOutlined style={{ color: '#5B92E5', fontSize: 14 }} />
+    <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
       {[0, 1, 2].map(i => (
-        <div key={i} style={{
-          width: 7, height: 7, borderRadius: '50%', background: '#5B92E5',
-          animation: 'drainzero-bounce 1.2s ease-in-out infinite',
-          animationDelay: `${i * 0.2}s`,
+        <span key={i} style={{
+          display: 'inline-block',
+          width: 6, height: 6,
+          borderRadius: '50%',
+          background: '#5B92E5',
+          opacity: 0.3,
+          animation: `dz-pulse 1.4s ease-in-out ${i * 0.2}s infinite`,
         }} />
       ))}
     </div>
-    <Text style={{ color: '#6B7280', fontSize: 13 }}>DrainZero is thinking...</Text>
     <style>{`
-      @keyframes drainzero-bounce {
-        0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
-        30%            { transform: translateY(-6px); opacity: 1; }
+      @keyframes dz-pulse {
+        0%, 80%, 100% { opacity: 0.25; transform: scale(0.85); }
+        40%            { opacity: 1;    transform: scale(1.15); }
       }
     `}</style>
   </div>
@@ -42,8 +46,8 @@ const TypingIndicator = () => (
 
 const TaxAssistantChatbot = () => {
   const { user } = useAuth();
-  const [messages, setMessages]     = useState([
-    { role: 'bot', text: 'Hi! I am your AI Tax Assistant powered by DrainZero + Gemini.\n\nI know your income, deductions, and profile. Ask me anything about your tax situation.' }
+  const [messages, setMessages] = useState([
+    { role: 'bot', text: 'Hi! I am your AI Tax Assistant powered by DrainZero + Gemini.\n\nI know your income, deductions, and profile. Ask me anything about your taxes.' }
   ]);
   const [inputValue, setInputValue] = useState('');
   const [loading, setLoading]       = useState(false);
@@ -54,7 +58,7 @@ const TaxAssistantChatbot = () => {
     if (messages.length > 1) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
-  }, [messages]);
+  }, [messages, loading]);
 
   const sendMessage = async (text) => {
     if (!text.trim() || loading) return;
@@ -62,11 +66,10 @@ const TaxAssistantChatbot = () => {
     setMessages(prev => [...prev, { role: 'user', text }]);
     setInputValue('');
     setLoading(true);
-
     try {
       if (!user) throw new Error('Please login to use the AI assistant.');
-      const result = await askAgent(user.id, text);
-      const reply  = result.answer || result.message || 'I could not process that. Please try again.';
+      const result     = await askAgent(user.id, text);
+      const reply      = result.answer || result.message || 'I could not process that. Please try again.';
       const actionCards = result.action_cards || [];
       setMessages(prev => [...prev, { role: 'bot', text: reply, actionCards }]);
     } catch (err) {
@@ -81,98 +84,97 @@ const TaxAssistantChatbot = () => {
 
   const handleClear = async () => {
     if (user) await clearAgentHistory(user.id).catch(() => {});
-    setMessages([{ role: 'bot', text: 'Conversation cleared. How can I help you with your taxes?' }]);
+    setMessages([{ role: 'bot', text: 'Cleared. How can I help you with your taxes?' }]);
     setShowCards(true);
   };
 
   return (
-    <Card
-      style={{ marginTop: 40, borderRadius: 24, border: '1px solid #B8C8E6', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}
-      bodyStyle={{ padding: 0 }}
-    >
+    <div style={{ marginTop: 40, borderRadius: 24, border: '1px solid #E5E7EB', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.04)' }}>
       {/* Header */}
       <div style={{
-        background: 'linear-gradient(135deg, #08457E 0%, #0D6EBA 100%)',
-        padding: '20px 24px', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+        background: '#08457E', padding: '16px 20px',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <RobotOutlined style={{ fontSize: 22, color: '#FFFFFF' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <RobotOutlined style={{ fontSize: 18, color: '#FFFFFF' }} />
           </div>
           <div>
-            <Title level={4} style={{ color: '#FFFFFF', margin: 0, fontSize: 16 }}>AI Tax Assistant</Title>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#10B981' }} />
-              <Text style={{ color: '#CCF1FF', fontSize: 12 }}>Powered by DrainZero + Gemini · RAG Enabled</Text>
+            <div style={{ color: '#FFFFFF', fontWeight: 700, fontSize: 14, fontFamily: "'Outfit', sans-serif" }}>AI Tax Assistant</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981' }} />
+              <span style={{ color: '#CCF1FF', fontSize: 11 }}>Powered by Gemini · RAG Enabled</span>
             </div>
           </div>
         </div>
-        <Button icon={<DeleteOutlined />} size="small" onClick={handleClear}
-          style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.3)', color: '#CCF1FF', borderRadius: 8 }} />
+        <button onClick={handleClear} style={{
+          background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)',
+          color: '#CCF1FF', borderRadius: 8, padding: '5px 10px', cursor: 'pointer',
+          fontSize: 12, fontFamily: "'Outfit', sans-serif",
+          transition: 'background 0.2s',
+        }}
+          onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
+          onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+        >
+          <DeleteOutlined /> Clear
+        </button>
       </div>
 
-      {/* Chat area */}
-      <div style={{ padding: 24, background: '#FFFFFF', borderBottomLeftRadius: 24, borderBottomRightRadius: 24 }}>
-        <div style={{ height: 300, overflowY: 'auto', marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 6 }}>
+      {/* Messages */}
+      <div style={{ background: '#FAFBFC', padding: '20px 20px 12px' }}>
+        <div style={{ height: 280, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, paddingRight: 4 }}>
           {messages.map((msg, i) => (
-            <div key={i}>
+            <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start', gap: 6 }}>
               <div style={{
-                alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                background: msg.role === 'user' ? 'linear-gradient(135deg, #5B92E5, #08457E)' : '#F2F3F4',
-                color: msg.role === 'user' ? '#FFF' : '#1F2937',
-                padding: '12px 16px', borderRadius: 16, maxWidth: '88%',
-                borderBottomRightRadius: msg.role === 'user' ? 4 : 16,
-                borderBottomLeftRadius : msg.role === 'bot'  ? 4 : 16,
-                display: 'inline-block',
-                float: msg.role === 'user' ? 'right' : 'left',
-                clear: 'both',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                background: msg.role === 'user' ? '#08457E' : '#FFFFFF',
+                color: msg.role === 'user' ? '#FFFFFF' : '#1F2937',
+                padding: '10px 14px',
+                borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                maxWidth: '86%',
+                fontSize: 13.5,
+                lineHeight: 1.65,
+                boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
+                whiteSpace: 'pre-line',
+                fontFamily: "'Outfit', sans-serif",
               }}>
-                <Space size={8} align="start" style={{ display: 'flex' }}>
-                  {msg.role === 'bot' && <RobotOutlined style={{ fontSize: 15, marginTop: 3, color: '#084C8D', flexShrink: 0 }} />}
-                  <Text style={{ color: 'inherit', display: 'block', whiteSpace: 'pre-line', fontSize: 14, lineHeight: 1.6 }}>{msg.text}</Text>
-                  {msg.role === 'user' && <UserOutlined style={{ fontSize: 15, marginTop: 3, color: '#FFF', flexShrink: 0 }} />}
-                </Space>
+                {msg.text}
               </div>
-
               {msg.role === 'bot' && msg.actionCards?.length > 0 && (
-                <div style={{ clear: 'both', marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, paddingLeft: 4 }}>
                   {msg.actionCards.map((card, ci) => (
-                    <Tag key={ci} onClick={() => sendMessage(card)}
-                      style={{ cursor: 'pointer', borderRadius: 20, padding: '6px 14px', fontSize: 12, background: '#EEF3FA', color: '#08457E', border: '1px solid #B8C8E6' }}>
+                    <button key={ci} onClick={() => sendMessage(card)} style={{
+                      background: '#EEF3FA', border: '1px solid #B8C8E6', borderRadius: 20,
+                      padding: '5px 12px', fontSize: 12, cursor: 'pointer', color: '#08457E',
+                      fontFamily: "'Outfit', sans-serif", transition: 'all 0.15s ease',
+                    }}
+                      onMouseOver={e => { e.currentTarget.style.background = '#5B92E5'; e.currentTarget.style.color = '#fff'; }}
+                      onMouseOut={e => { e.currentTarget.style.background = '#EEF3FA'; e.currentTarget.style.color = '#08457E'; }}
+                    >
                       <ThunderboltOutlined style={{ marginRight: 4 }} />{card}
-                    </Tag>
+                    </button>
                   ))}
                 </div>
               )}
-              <div style={{ clear: 'both' }} />
             </div>
           ))}
 
-          {loading && (
-            <div>
-              <TypingIndicator />
-              <div style={{ clear: 'both' }} />
-            </div>
-          )}
+          {loading && <TypingDots />}
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Quick Action Cards */}
+        {/* Quick cards */}
         {showCards && (
-          <div style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 11, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 10 }}>Quick Questions</Text>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <div style={{ marginTop: 12, marginBottom: 4 }}>
+            <div style={{ fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Quick Questions</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {ACTION_CARDS.map((card, i) => (
-                <button key={i} onClick={() => sendMessage(card.label)}
-                  style={{
-                    background: '#F2F3F4', border: '1px solid #B8C8E6', borderRadius: 20,
-                    padding: '8px 14px', fontSize: 12, cursor: 'pointer', color: '#08457E',
-                    fontFamily: "'Outfit', sans-serif", fontWeight: 500, transition: 'all 0.2s ease',
-                  }}
-                  onMouseOver={e => { e.currentTarget.style.background = '#EEF3FA'; e.currentTarget.style.borderColor = '#5B92E5'; }}
-                  onMouseOut={e => { e.currentTarget.style.background = '#F2F3F4'; e.currentTarget.style.borderColor = '#B8C8E6'; }}
+                <button key={i} onClick={() => sendMessage(card.label)} style={{
+                  background: '#F2F3F4', border: '1px solid #E5E7EB', borderRadius: 20,
+                  padding: '7px 13px', fontSize: 12, cursor: 'pointer', color: '#374151',
+                  fontFamily: "'Outfit', sans-serif", transition: 'all 0.15s ease',
+                }}
+                  onMouseOver={e => { e.currentTarget.style.background = '#EEF3FA'; e.currentTarget.style.borderColor = '#5B92E5'; e.currentTarget.style.color = '#08457E'; }}
+                  onMouseOut={e => { e.currentTarget.style.background = '#F2F3F4'; e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.color = '#374151'; }}
                 >
                   {card.icon} {card.label}
                 </button>
@@ -180,24 +182,43 @@ const TaxAssistantChatbot = () => {
             </div>
           </div>
         )}
+      </div>
 
-        {/* Input */}
-        <Space.Compact style={{ width: '100%' }}>
-          <Input size="large" placeholder="Ask a tax question..."
+      {/* Input bar */}
+      <div style={{ background: '#FFFFFF', padding: '12px 20px 16px', borderTop: '1px solid #F0F0F0' }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
             value={inputValue}
             onChange={e => setInputValue(e.target.value)}
-            onPressEnter={() => sendMessage(inputValue)}
+            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage(inputValue)}
             disabled={loading}
-            style={{ borderRadius: '12px 0 0 12px', background: '#F9FAFB' }}
+            placeholder="Ask a tax question..."
+            style={{
+              flex: 1, height: 44, borderRadius: 12, border: '1.5px solid #E5E7EB',
+              padding: '0 14px', fontSize: 13.5, outline: 'none',
+              fontFamily: "'Outfit', sans-serif", background: '#F9FAFB',
+              transition: 'border-color 0.2s',
+              opacity: loading ? 0.6 : 1,
+            }}
+            onFocus={e => e.target.style.borderColor = '#5B92E5'}
+            onBlur={e => e.target.style.borderColor = '#E5E7EB'}
           />
-          <Button type="primary" size="large" icon={<SendOutlined />}
-            onClick={() => sendMessage(inputValue)}
-            loading={loading}
-            style={{ borderRadius: '0 12px 12px 0', background: '#5B92E5', border: 'none', width: 60 }}
-          />
-        </Space.Compact>
+          <button onClick={() => sendMessage(inputValue)} disabled={loading || !inputValue.trim()} style={{
+            width: 44, height: 44, borderRadius: 12, border: 'none',
+            background: loading || !inputValue.trim() ? '#E5E7EB' : '#5B92E5',
+            color: loading || !inputValue.trim() ? '#9CA3AF' : '#FFFFFF',
+            cursor: loading || !inputValue.trim() ? 'not-allowed' : 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'all 0.2s ease', flexShrink: 0,
+          }}
+            onMouseOver={e => { if (!loading && inputValue.trim()) e.currentTarget.style.background = '#08457E'; }}
+            onMouseOut={e => { if (!loading && inputValue.trim()) e.currentTarget.style.background = '#5B92E5'; }}
+          >
+            <SendOutlined style={{ fontSize: 16 }} />
+          </button>
+        </div>
       </div>
-    </Card>
+    </div>
   );
 };
 
