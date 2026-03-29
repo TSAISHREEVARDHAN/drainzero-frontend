@@ -1,36 +1,36 @@
 import React from 'react';
-import { ConfigProvider, Button, Typography, Row, Col, Card, Space, Tag } from 'antd';
+import { ConfigProvider, Button, Typography, Row, Col, Card, Space, Tag, Statistic } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import {
   SwapOutlined, SearchOutlined, LineChartOutlined, CheckCircleOutlined,
-  WalletOutlined, BulbOutlined, FileTextOutlined,
-  ArrowRightOutlined, ThunderboltFilled
+  WalletOutlined, BulbOutlined, FileTextOutlined, SafetyOutlined,
+  ArrowRightOutlined, StarFilled, ThunderboltFilled
 } from '@ant-design/icons';
 
 const { Title, Text, Paragraph } = Typography;
 
 const FEATURES = [
-  { title: 'Regime Comparison',      desc: 'Side-by-side Old vs New regime with FY 2025-26 slabs. Shows exactly which saves more.',                  icon: <SwapOutlined />,        color: '#5B92E5' },
-  { title: 'Tax Leakage Detection',  desc: "Finds money you're losing without knowing — missed deductions, unclaimed exemptions.",                    icon: <SearchOutlined />,      color: '#F59E0B' },
-  { title: 'Tax Health Score',       desc: 'A score out of 100 showing how optimized your tax planning is.',                                          icon: <LineChartOutlined />,   color: '#10B981' },
-  { title: 'AI Tax Assistant',       desc: 'Ask anything — the AI knows your income, deductions and profile. Like a personal CA.',                    icon: <ThunderboltFilled />,   color: '#7C3AED' },
-  { title: 'Legal Loopholes',        desc: '14 legally bulletproof strategies — HUF, RNOR, LTCG harvesting, marriage gifts and more.',               icon: <BulbOutlined />,        color: '#D97706' },
-  { title: 'Document Upload',        desc: 'Upload Form 16 or AIS — AI reads it and fills your profile automatically.',                               icon: <FileTextOutlined />,    color: '#0891B2' },
-  { title: 'What-If Simulator',      desc: 'Drag sliders to see live tax impact. No other free tool has this.',                                       icon: <WalletOutlined />,      color: '#059669' },
-  { title: '50+ Deductions Explorer',desc: 'Every tax section — 80C to 112A — with your personal claim status.',                                      icon: <CheckCircleOutlined />, color: '#EF4444' },
+  { title: 'Regime Comparison', desc: 'Side-by-side Old vs New regime with FY 2025-26 slabs. Shows exactly which saves more.', icon: <SwapOutlined />, color: '#5B92E5' },
+  { title: 'Tax Leakage Detection', desc: 'Finds money you\'re losing without knowing — missed deductions, unclaimed exemptions.', icon: <SearchOutlined />, color: '#F59E0B' },
+  { title: 'Tax Health Score', desc: 'A score out of 100 showing how optimized your tax planning is.', icon: <LineChartOutlined />, color: '#10B981' },
+  { title: 'AI Tax Assistant', desc: 'Ask anything — the AI knows your income, deductions and profile. Like a personal CA.', icon: <ThunderboltFilled />, color: '#7C3AED' },
+  { title: 'Legal Loopholes', desc: '14 legally bulletproof strategies — HUF, RNOR, LTCG harvesting, marriage gifts and more.', icon: <BulbOutlined />, color: '#D97706' },
+  { title: 'Document Upload', desc: 'Upload Form 16 or AIS — Gemini Vision reads it and fills your profile automatically.', icon: <FileTextOutlined />, color: '#0891B2' },
+  { title: 'What-If Simulator', desc: 'Drag sliders to see live tax impact. No other free tool has this.', icon: <WalletOutlined />, color: '#059669' },
+  { title: '50+ Deductions Explorer', desc: 'Every tax section — 80C to 112A — with your personal claim status.', icon: <CheckCircleOutlined />, color: '#EF4444' },
 ];
 
 const STATS = [
   { value: '50+', label: 'Tax Sections Covered' },
-  { value: '14',  label: 'Legal Loopholes'       },
-  { value: '63',  label: 'KB Entries (RAG)'      },
-  { value: '₹0',  label: 'Cost to Use'           },
+  { value: '14', label: 'Legal Loopholes' },
+  { value: '63', label: 'KB Entries (RAG)' },
+  { value: '₹0', label: 'Cost to Use' },
 ];
 
 const HOW_IT_WORKS = [
-  { step: '01', title: 'Tell us about yourself', desc: 'Name, age, employment type, sector, city — takes 2 minutes.'              },
-  { step: '02', title: 'Select your category',   desc: 'Vehicle, Stocks, Health Insurance, or Property — we go deep on each.'     },
-  { step: '03', title: 'Enter financial details', desc: 'Salary, deductions, asset details — our smart form guides you.'          },
+  { step: '01', title: 'Tell us about yourself', desc: 'Name, age, employment type, sector, city — takes 2 minutes.' },
+  { step: '02', title: 'Select your category', desc: 'Vehicle, Stocks, Health Insurance, or Property — we go deep on each.' },
+  { step: '03', title: 'Enter financial details', desc: 'Salary, deductions, asset details — our smart form guides you.' },
   { step: '04', title: 'Get your full analysis', desc: 'Tax comparison, health score, leakage gaps, recommendations — all in one dashboard.' },
 ];
 
@@ -54,10 +54,10 @@ const LandingPage = () => {
               Drain<span style={{ color: '#5B92E5' }}>Zero</span>
             </span>
           </div>
-          {/* Only Login in nav — no Get Started */}
-          <Button onClick={() => navigate('/login')} style={{ height: 36, borderRadius: 10, color: '#08457E', borderColor: '#B8C8E6', fontSize: 13, padding: '0 20px', fontWeight: 600 }}>
-            Login
-          </Button>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+            <Button onClick={() => navigate('/login')} style={{ height: 34, borderRadius: 10, color: '#08457E', borderColor: '#B8C8E6', fontSize: 12, padding: '0 12px' }}>Login</Button>
+            <Button type="primary" onClick={() => navigate('/signup')} style={{ height: 34, borderRadius: 10, background: '#08457E', border: 'none', fontSize: 12, padding: '0 12px' }}>Get Started</Button>
+          </div>
         </nav>
 
         {/* ── Hero ── */}
@@ -104,11 +104,13 @@ const LandingPage = () => {
                 ClearTax and TaxBuddy help you file. DrainZero helps you <strong>pay less</strong> — before you file.
               </Paragraph>
             </div>
+
             <Row gutter={[24, 24]}>
+              {/* Comparison */}
               <Col xs={24} md={12}>
                 <Card style={{ borderRadius: 20, border: '1px solid #E5E7EB', height: '100%' }}>
                   <Title level={5} style={{ color: '#EF4444', marginBottom: 20 }}>❌ Traditional Tax Tools</Title>
-                  {['Enter income → get tax amount (no advice)', 'Generic deductions list — same for everyone', 'No personalization', 'You figure out what to do next', 'File and forget'].map((t, i) => (
+                  {['Enter income → get tax amount (no advice)', 'Generic deductions list — same for everyone', 'No AI — no personalization', 'You figure out what to do next', 'File and forget'].map((t, i) => (
                     <div key={i} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: '1px solid #F3F4F6', fontSize: 14, color: '#6B7280' }}>
                       <span>✗</span><span>{t}</span>
                     </div>
@@ -118,7 +120,7 @@ const LandingPage = () => {
               <Col xs={24} md={12}>
                 <Card style={{ borderRadius: 20, border: '2px solid #5B92E5', background: '#EFF6FF', height: '100%' }}>
                   <Title level={5} style={{ color: '#08457E', marginBottom: 20 }}>✅ DrainZero</Title>
-                  {['Category-aware analysis — Bike gets bike strategies', 'AI that knows YOUR income, deductions, and profile', "Detects leakage — finds money you didn't know you were losing", 'Specific action steps with savings estimates', 'Legal loopholes even CAs miss'].map((t, i) => (
+                  {['Category-aware analysis — Bike gets bike strategies', 'AI that knows YOUR income, deductions, and profile', 'Detects leakage — finds money you didn\'t know you were losing', 'Specific action steps with savings estimates', 'Legal loopholes even CAs miss'].map((t, i) => (
                     <div key={i} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: '1px solid #BFDBFE', fontSize: 14, color: '#1E40AF' }}>
                       <span style={{ color: '#10B981', fontWeight: 700 }}>✓</span><span>{t}</span>
                     </div>
@@ -140,7 +142,7 @@ const LandingPage = () => {
               {FEATURES.map((f, i) => (
                 <Col xs={24} sm={12} lg={6} key={i}>
                   <Card style={{ borderRadius: 20, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.04)', height: '100%', transition: 'transform 0.2s' }}
-                    className="feature-card" styles={{ body: { padding: 28 } }}>
+                    className="feature-card" bodyStyle={{ padding: 28 }}>
                     <div style={{ width: 48, height: 48, borderRadius: 14, background: `${f.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: f.color, fontSize: 22, marginBottom: 16 }}>
                       {f.icon}
                     </div>
@@ -183,12 +185,22 @@ const LandingPage = () => {
               DrainZero is a <strong>Personal Fiscal Optimization Engine</strong> built for Indian middle-income taxpayers. With the New Tax Regime simplifying deductions, many taxpayers suffer from "benefit blindness" — assuming there's nothing to optimize.
             </Paragraph>
             <Paragraph style={{ color: '#6B7280', fontSize: 16, lineHeight: 1.8, marginBottom: 16 }}>
-              DrainZero uses a <strong>RAG knowledge base</strong> of 63 verified Indian tax law entries and <strong>semantic search</strong> to give you answers that feel like talking to a CA — but free, instant, and available 24/7.
+              DrainZero changes that. It uses <strong>AI (Gemini)</strong>, a <strong>RAG knowledge base</strong> of 63 verified Indian tax law entries, and <strong>semantic search</strong> to give you answers that feel like talking to a CA — but free, instant, and available 24/7.
             </Paragraph>
             <Paragraph style={{ color: '#6B7280', fontSize: 16, lineHeight: 1.8 }}>
               It's not a filing tool. It's a <strong>diagnostic and advisory tool</strong> — helping you understand where your tax money is going and what you can legally do about it.
             </Paragraph>
           </div>
+        </section>
+
+        {/* ── CTA ── */}
+        <section style={{ padding: '80px 40px', background: '#08457E', textAlign: 'center' }}>
+          <Title level={2} style={{ color: '#FFFFFF', fontWeight: 800, marginBottom: 16 }}>Start Optimizing Your Taxes Today</Title>
+          <Paragraph style={{ color: '#CCF1FF', fontSize: 18, marginBottom: 36 }}>Free · No CA needed · Takes 5 minutes</Paragraph>
+          <Button type="primary" size="large" onClick={() => navigate('/signup')}
+            style={{ height: 60, padding: '0 60px', fontSize: 20, background: '#5B92E5', border: 'none', borderRadius: 50, fontWeight: 700, boxShadow: '0 10px 30px rgba(91,146,229,0.4)' }}>
+            Get Started Free →
+          </Button>
         </section>
 
         {/* ── Footer ── */}
@@ -206,12 +218,24 @@ const LandingPage = () => {
           </Text>
           <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid #374151', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
             <span style={{ color: '#6B7280', fontSize: 13 }}>Built by</span>
-            <a href="https://www.linkedin.com/in/t-sai-shree-vardhan/" target="_blank" rel="noopener noreferrer"
-              style={{ color: '#5B92E5', fontWeight: 600, fontSize: 13, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <a
+              href="https://www.linkedin.com/in/t-sai-shree-vardhan/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#5B92E5', fontWeight: 600, fontSize: 13, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="#5B92E5" style={{ flexShrink: 0 }}>
                 <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
               </svg>
               T Sai Shree Vardhan
+            </a>
+            <span style={{ color: '#4B5563', fontSize: 13 }}>&amp;</span>
+            <a href="https://www.linkedin.com/in/shradhha-uplanchiwar" target="_blank" rel="noopener noreferrer"
+              style={{ color: '#5B92E5', fontWeight: 600, fontSize: 13, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="#5B92E5" style={{ flexShrink: 0 }}>
+                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+              </svg>
+              Shradhha Uplanchiwar
             </a>
           </div>
           <div style={{ marginTop: 12, color: '#4B5563', fontSize: 12 }}>
@@ -221,7 +245,10 @@ const LandingPage = () => {
 
         <style>{`
           .feature-card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(8,69,126,0.1) !important; }
-          @media (max-width: 768px) { section { padding: 48px 20px !important; } nav { padding: 0 20px !important; } }
+          @media (max-width: 768px) {
+            section { padding: 48px 20px !important; }
+            nav { padding: 0 20px !important; }
+          }
         `}</style>
       </div>
     </ConfigProvider>
