@@ -159,8 +159,28 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    localStorage.removeItem(LAST_ACTIVE_KEY);
-    await supabase.auth.signOut({ scope: 'local' });
+
+    try {
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch (error) {
+      console.warn('Supabase signOut warning:', error?.message || error);
+    }
+
+    try {
+      localStorage.removeItem(LAST_ACTIVE_KEY);
+      localStorage.removeItem('drainzero-session');
+      Object.keys(localStorage).forEach((key) => {
+        if (key && (key.includes('supabase') || key.includes('drainzero'))) {
+          localStorage.removeItem(key);
+        }
+      });
+      Object.keys(sessionStorage).forEach((key) => {
+        if (key && (key.includes('supabase') || key.includes('drainzero'))) {
+          sessionStorage.removeItem(key);
+        }
+      });
+    } catch {}
+
     setUser(null);
     setOnboardingDone(false);
     setUserProfile(null);

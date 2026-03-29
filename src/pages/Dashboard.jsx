@@ -46,8 +46,13 @@ const Dashboard = () => {
   };
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/');
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Logout failed:', error);
+    } finally {
+      window.location.replace('/login');
+    }
   };
 
   const handleDownloadReport = () => {

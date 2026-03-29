@@ -16,7 +16,8 @@ const Navbar = () => {
     } catch (error) {
       console.error('Logout failed:', error);
     } finally {
-      window.location.href = '/';
+      setDrawerOpen(false);
+      window.location.replace('/login');
     }
   };
   const handleLogoClick = () => { if (user) navigate('/dashboard', { state: {} }); else navigate('/'); };

@@ -93,7 +93,7 @@ export const getLastTaxResult = async (userId) => {
     .from('tax_results')
     .select('*')
     .eq('user_id', userId)
-    .single();
+    .maybeSingle();
   if (error) return null;
   return data;
 };
