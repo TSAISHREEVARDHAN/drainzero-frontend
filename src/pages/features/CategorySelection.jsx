@@ -150,18 +150,6 @@ const CategorySelection = () => {
           <Navbar />
           <div style={{ padding: '24px 16px' }}>
                 <Content style={{ maxWidth: '1100px', margin: '0 auto', width: '100%', padding: '24px 16px' }}>
-                    {/* Back to login */}
-                    <div style={{ marginBottom: '16px' }}>
-                        <Button
-                            icon={<ArrowLeftOutlined />}
-                            type="text"
-                            onClick={() => navigate('/login')}
-                            style={{ color: '#5B92E5', fontWeight: 600, padding: 0 }}
-                        >
-                            Back
-                        </Button>
-                    </div>
-
                     {/* Header */}
                     <div style={{ marginBottom: '64px', textAlign: 'center' }}>
                         <Title level={1} style={{ color: '#5B92E5', marginBottom: '12px', fontWeight: 800, fontSize: '3rem' }}>

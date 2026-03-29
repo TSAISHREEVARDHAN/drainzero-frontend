@@ -8,7 +8,7 @@ const { Title, Text } = Typography;
 
 const FEATURES = [
   'Old vs New regime comparison',
-  'AI Tax Assistant',
+  'AI Tax Assistant (Gemini-powered)',
   '14 legal tax loopholes',
   'Form 16 upload & auto-analysis',
   'Tax leakage detection',
@@ -18,7 +18,7 @@ const SignupPage = () => {
   const navigate = useNavigate();
   const { loginWithGoogle } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState('');
+  const [error, setError]     = useState('');
 
   const handleGoogleSignup = async () => {
     try {
@@ -74,7 +74,12 @@ const SignupPage = () => {
           </div>
 
           {/* Features list */}
-          <div style={{ background: '#EEF3FA', borderRadius: 12, padding: '14px 18px', marginBottom: 24 }}>
+          <div style={{
+            background: '#EEF3FA',
+            borderRadius: 12,
+            padding: '14px 18px',
+            marginBottom: 24,
+          }}>
             {FEATURES.map((f, i) => (
               <div key={i} style={{
                 display: 'flex', alignItems: 'center', gap: 8,
@@ -88,7 +93,8 @@ const SignupPage = () => {
           </div>
 
           {error && (
-            <Alert message={error} type="error" showIcon style={{ marginBottom: 20, borderRadius: 10 }} />
+            <Alert message={error} type="error" showIcon
+              style={{ marginBottom: 20, borderRadius: 10 }} />
           )}
 
           {/* Google Button */}
@@ -98,21 +104,29 @@ const SignupPage = () => {
             loading={loading}
             onClick={handleGoogleSignup}
             style={{
-              height: 52, borderRadius: 12, fontWeight: 600, fontSize: 15,
-              borderColor: '#D1D5DB', color: '#1F2937', background: '#FFFFFF',
-              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              gap: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+              height: 52,
+              borderRadius: 12,
+              fontWeight: 600,
+              fontSize: 15,
+              borderColor: '#D1D5DB',
+              color: '#1F2937',
+              background: '#FFFFFF',
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
             }}
           >
             Sign up with Google
           </Button>
 
           <div style={{ textAlign: 'center', marginTop: 16 }}>
-            {/* FIX: "Sign in" → "Login", links to /login */}
             <div style={{ color: '#6B7280', fontSize: 13, marginBottom: 8 }}>
               Already have an account?{' '}
               <Link to="/login" style={{ color: '#5B92E5', fontWeight: 600 }}>
-                Login
+                Sign in
               </Link>
             </div>
             <Button type="text" size="small"
@@ -123,7 +137,13 @@ const SignupPage = () => {
             </Button>
           </div>
 
-          <div style={{ marginTop: 20, padding: '10px 16px', background: '#F9FAFB', borderRadius: 10, textAlign: 'center' }}>
+          <div style={{
+            marginTop: 20,
+            padding: '10px 16px',
+            background: '#F9FAFB',
+            borderRadius: 10,
+            textAlign: 'center',
+          }}>
             <Text style={{ color: '#9CA3AF', fontSize: 12 }}>
               🔒 Secure signup via Google · Only name & email accessed
             </Text>

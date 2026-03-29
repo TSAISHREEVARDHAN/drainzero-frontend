@@ -20,7 +20,7 @@ const { Title, Text, Paragraph } = Typography;
 const Dashboard = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout, user } = useAuth();
+  const { logout, user, userProfile } = useAuth();
 
   const { category, subcategory, ownership, formData } = location.state || {
     category: 'General', subcategory: 'Analysis', ownership: '', formData: {}
@@ -69,6 +69,7 @@ const Dashboard = () => {
           <div style={{ marginBottom: 48, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 20 }}>
             <div>
               <Title level={1} style={{ color: '#08457E', margin: 0, fontWeight: 800 }}>Strategy Dashboard</Title>
+              <Paragraph style={{ margin: '10px 0 0', color: '#6B7280', fontSize: 16 }}>Welcome back, {(userProfile?.name || userProfile?.full_name || user?.email?.split('@')[0] || 'User')}</Paragraph>
               <Space size={12} style={{ marginTop: 8 }}>
                 {category && <Tag color="blue" style={{ fontSize: 13, padding: '4px 12px', borderRadius: 100, fontWeight: 600 }}>{category}</Tag>}
                 {subcategory && <Tag color="cyan" style={{ fontSize: 13, padding: '4px 12px', borderRadius: 100, fontWeight: 600 }}>{subcategory}</Tag>}

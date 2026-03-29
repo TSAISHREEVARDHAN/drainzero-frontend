@@ -70,7 +70,7 @@ const useProfileData = () => {
     };
 
     load();
-  }, [user]);
+  }, [user, stateData]);
 
   return { formData, backendResult, dataLoading, category, subcategory, ownership };
 };
