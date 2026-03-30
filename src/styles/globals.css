@@ -182,3 +182,102 @@ body {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* ═══════════════════════════════════════════════════
+   DRAINZERO FIX: Input contrast + visibility
+   Inputs must NOT look faded — clear, dark text, white bg
+   ═══════════════════════════════════════════════════ */
+
+/* All text inputs */
+.ant-input,
+.ant-input-affix-wrapper {
+  background-color: #FFFFFF !important;
+  color: #1A1A2E !important;
+  border-color: #D1D5DB !important;
+  opacity: 1 !important;
+}
+
+.ant-input-number,
+.ant-input-number-affix-wrapper {
+  background-color: #FFFFFF !important;
+  border-color: #D1D5DB !important;
+}
+
+.ant-input-number-input {
+  color: #1A1A2E !important;
+  background: #FFFFFF !important;
+  opacity: 1 !important;
+}
+
+/* Only TRULY disabled inputs should look muted */
+.ant-input[disabled],
+.ant-input-affix-wrapper-disabled {
+  background-color: #F3F4F6 !important;
+  color: #6B7280 !important;
+  cursor: not-allowed;
+}
+
+/* Select dropdowns */
+.ant-select:not(.ant-select-disabled) .ant-select-selector {
+  background-color: #FFFFFF !important;
+  color: #1A1A2E !important;
+  border-color: #D1D5DB !important;
+}
+
+.ant-select-selection-item {
+  color: #1A1A2E !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  font-weight: 500 !important;
+}
+
+.ant-select-selection-placeholder {
+  color: #9CA3AF !important;
+}
+
+/* DatePicker */
+.ant-picker {
+  background-color: #FFFFFF !important;
+  border-color: #D1D5DB !important;
+}
+.ant-picker-input > input {
+  color: #1A1A2E !important;
+}
+
+/* Form labels — clear headings */
+.ant-form-item-label > label {
+  color: #08457E !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+}
+
+.ant-form-item-extra {
+  color: #6B7280 !important;
+  font-size: 12px !important;
+}
+
+/* Input prefix icon */
+.ant-input-prefix,
+.ant-input-number-prefix {
+  color: #6B7280 !important;
+}
+
+/* Radio buttons */
+.ant-radio-button-wrapper {
+  color: #374151 !important;
+  font-weight: 600 !important;
+}
+.ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled) {
+  background: #5B92E5 !important;
+  color: #FFFFFF !important;
+  border-color: #5B92E5 !important;
+}
+
+/* Route fade-in (App.jsx AnimatedRoutes) */
+.route-fade-in {
+  animation: routeFadeIn 0.18s ease-out;
+}
+@keyframes routeFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}

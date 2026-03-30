@@ -120,16 +120,33 @@ const ProfilePage = () => {
 
   // ── Save income & deductions ──
   const handleSaveIncome = async () => {
+    // FIX: setLoading before await, clear in finally (no infinite spinner)
+    setSavingIncome(true);
+    setIncomeError('');
     try {
-      setSavingIncome(true);
-      setIncomeError('');
       const values = incomeForm.getFieldsValue();
-      const profilePayload = mapFormToProfile(values);
+      const base = parseFloat(values.annualSalary) || 0;
+      if (base <= 0) throw new Error('Annual income must be greater than ₹0');
+
+      // FIX: enforce statutory deduction limits before saving
+      const capped = {
+        ...values,
+        deduction80C : Math.min(parseFloat(values.deduction80C)  || 0, 150000),
+        deduction80D : Math.min(parseFloat(values.deduction80D)  || 0, 25000),
+        deductionNPS : Math.min(parseFloat(values.deductionNPS)  || 0, 50000),
+      };
+
+      const profilePayload = mapFormToProfile(capped);
       await saveIncomeProfile(user.id, profilePayload);
-      message.success('Saved! All features will now use these updated values.');
+
+      // FIX: only show success when saveIncomeProfile resolves without throwing
+      message.success('✅ Details saved successfully — all features use your updated values.');
     } catch (err) {
+      // FIX: show failure explicitly — never fake success
+      message.error(`❌ Failed to save: ${err.message}`);
       setIncomeError(err.message);
     } finally {
+      // FIX: always clear loading state
       setSavingIncome(false);
     }
   };

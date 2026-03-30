@@ -29,7 +29,7 @@ const AnalysisForm = ({
 }) => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { user } = useAuth();
+    const { user, hasIncomeData } = useAuth();   // FIX: also pull hasIncomeData
     const [form] = Form.useForm();
     const [submitting, setSubmitting] = useState(false);
     const [savedProfile, setSavedProfile] = useState(null);
@@ -93,8 +93,9 @@ const AnalysisForm = ({
     }, [user, form]);
 
     const checkFormValidity = () => {
-        // NEW USERS must add income details first before analysis can run
-        if (!savedProfile) return false;
+        // FIX: gate on EITHER savedProfile from DB OR hasIncomeData from context
+        // (hasIncomeData updates immediately after modal save without page reload)
+        if (!savedProfile && !hasIncomeData) return false;
         // Income is loaded from Supabase — just check category-specific fields
         if (isVehicle) return vPurchasePrice > 0 && vPurchaseDate && usageType;
         if (isStocks) {
@@ -500,7 +501,7 @@ const AnalysisForm = ({
                                     type="primary"
                                     htmlType="submit"
                                     size="large"
-                                    disabled={!isFormValid || !savedProfile || submitting}
+                                    disabled={!isFormValid || submitting}
                                     loading={submitting}
                                     icon={<ArrowRightOutlined />}
                                     style={{

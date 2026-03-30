@@ -1,30 +1,19 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '../config/supabase';
 
 const AuthContext = createContext(null);
 
-// ── Session timeout: 30 minutes in ms ──
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
 const LAST_ACTIVE_KEY    = 'drainzero-last-active';
 
+// ── Safely read any cached Supabase session from localStorage ──
 const getCachedSession = () => {
   try {
-    // Check if session has timed out due to inactivity
     const lastActive = localStorage.getItem(LAST_ACTIVE_KEY);
-    if (lastActive) {
-      const elapsed = Date.now() - parseInt(lastActive);
-      if (elapsed > SESSION_TIMEOUT_MS) {
-        // Timed out — clear everything
-        localStorage.removeItem(LAST_ACTIVE_KEY);
-        return null;
-      }
+    if (lastActive && Date.now() - parseInt(lastActive) > SESSION_TIMEOUT_MS) {
+      localStorage.removeItem(LAST_ACTIVE_KEY);
+      return null;
     }
-
-    const raw = localStorage.getItem('drainzero-session');
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    const session = parsed?.currentSession || parsed?.session || parsed;
-    if (session?.access_token && session?.user) return session;
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key && (key.includes('supabase') || key.includes('drainzero'))) {
@@ -42,88 +31,111 @@ const getCachedSession = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const cachedSession = getCachedSession();
+  const cachedSession   = getCachedSession();
   const [user,           setUser]           = useState(cachedSession?.user ?? null);
   const [loading,        setLoading]        = useState(!cachedSession);
   const [onboardingDone, setOnboardingDone] = useState(false);
   const [userProfile,    setUserProfile]    = useState(null);
-  const initRef                             = useRef(false);
-  const timeoutRef                          = useRef(null);
+  // ── NEW: tracks whether user has real income data in DB ──
+  const [hasIncomeData,  setHasIncomeData]  = useState(false);
 
-  // ── Update last active timestamp on any user interaction ──
-  const updateActivity = () => {
-    localStorage.setItem(LAST_ACTIVE_KEY, Date.now().toString());
-    // Reset timeout timer
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => {
-      // Auto logout after 30 min inactivity
-      handleAutoLogout();
-    }, SESSION_TIMEOUT_MS);
-  };
+  const initRef    = useRef(false);
+  const timeoutRef = useRef(null);
 
-  const handleAutoLogout = async () => {
-    await supabase.auth.signOut({ scope: 'local' });
-    localStorage.removeItem(LAST_ACTIVE_KEY);
+  // ── Wipe all app state and localStorage keys ──
+  const clearAllState = useCallback(() => {
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.includes('supabase') || k.includes('drainzero'))) keys.push(k);
+    }
+    keys.forEach(k => localStorage.removeItem(k));
+    try {
+      const sKeys = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const k = sessionStorage.key(i);
+        if (k && (k.includes('supabase') || k.includes('drainzero'))) sKeys.push(k);
+      }
+      sKeys.forEach(k => sessionStorage.removeItem(k));
+    } catch {}
     setUser(null);
     setOnboardingDone(false);
     setUserProfile(null);
-  };
+    setHasIncomeData(false);
+  }, []);
 
-  // ── Attach activity listeners ──
+  const handleAutoLogout = useCallback(async () => {
+    try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
+    clearAllState();
+  }, [clearAllState]);
+
+  const updateActivity = useCallback(() => {
+    localStorage.setItem(LAST_ACTIVE_KEY, Date.now().toString());
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(handleAutoLogout, SESSION_TIMEOUT_MS);
+  }, [handleAutoLogout]);
+
+  // ── Attach activity listeners when user is logged in ──
   useEffect(() => {
     if (!user) return;
-
-    // Set initial activity timestamp
     updateActivity();
-
     const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
     events.forEach(e => window.addEventListener(e, updateActivity, { passive: true }));
-
     return () => {
       events.forEach(e => window.removeEventListener(e, updateActivity));
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, [user]);
+  }, [user, updateActivity]);
 
-  const checkOnboarding = async (uid) => {
+  // ── Check DB for onboarding status + income data ──
+  const checkOnboarding = useCallback(async (uid) => {
     try {
-      const { data } = await supabase
+      const { data: userData } = await supabase
         .from('users')
-        .select('id, name, email, age, gender, marital_status, employment_type, sector, profession, state, city, is_metro, onboarding_done, onboarding_complete')
+        .select('id, name, full_name, email, age, gender, marital_status, employment_type, sector, profession, state, city, is_metro, onboarding_done, onboarding_complete')
         .eq('id', uid)
         .maybeSingle();
 
-      if (!data) { setOnboardingDone(false); setUserProfile(null); return false; }
-      const done = !!(data.onboarding_done || data.onboarding_complete);
-      setOnboardingDone(done);
-      setUserProfile(data);
-      return done;
-    } catch (error) {
-      console.error('checkOnboarding failed:', error);
-      setOnboardingDone(false);
-      setUserProfile(null);
-      return false;
-    }
-  };
+      if (!userData) {
+        setOnboardingDone(false);
+        setUserProfile(null);
+        setHasIncomeData(false);
+        return false;
+      }
 
+      const done = !!(userData.onboarding_done || userData.onboarding_complete);
+      setOnboardingDone(done);
+      setUserProfile(userData);
+
+      // ── Check income_profile: must exist AND have real salary > 0 ──
+      const { data: incomeRow } = await supabase
+        .from('income_profile')
+        .select('user_id, gross_salary')
+        .eq('user_id', uid)
+        .maybeSingle();
+
+      setHasIncomeData(!!(incomeRow && Number(incomeRow.gross_salary) > 0));
+      return done;
+    } catch (err) {
+      console.error('checkOnboarding error:', err.message);
+      // On network error, allow user through rather than locking them out
+      setOnboardingDone(true);
+      return true;
+    }
+  }, []);
+
+  // ── Initialise once ──
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
 
     const init = async () => {
-      if (cachedSession?.user) {
-        checkOnboarding(cachedSession.user.id);
-      }
-
+      if (cachedSession?.user) checkOnboarding(cachedSession.user.id);
       const { data: { session } } = await supabase.auth.getSession();
       const u = session?.user ?? null;
       setUser(u);
-      if (u) {
-        await checkOnboarding(u.id);
-      } else if (!u && cachedSession?.user) {
-        setOnboardingDone(false);
-        setUserProfile(null);
-      }
+      if (u) await checkOnboarding(u.id);
+      else if (!u && cachedSession?.user) clearAllState();
       setLoading(false);
     };
 
@@ -138,9 +150,7 @@ export const AuthProvider = ({ children }) => {
         await checkOnboarding(u.id);
         setLoading(false);
       } else if (event === 'SIGNED_OUT') {
-        localStorage.removeItem(LAST_ACTIVE_KEY);
-        setOnboardingDone(false);
-        setUserProfile(null);
+        clearAllState();
         setLoading(false);
       }
     });
@@ -151,41 +161,19 @@ export const AuthProvider = ({ children }) => {
   const loginWithGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options : {
-        redirectTo  : `${window.location.origin}/auth/callback`,
-        queryParams : { prompt: 'select_account' },
-      }
+      options: {
+        redirectTo : `${window.location.origin}/auth/callback`,
+        queryParams: { prompt: 'select_account' },
+      },
     });
     if (error) throw error;
   };
 
+  // ── FIX: full logout — clear token, storage, state; caller handles redirect ──
   const logout = async () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-
-    try {
-      await supabase.auth.signOut({ scope: 'local' });
-    } catch (error) {
-      console.warn('Supabase signOut warning:', error?.message || error);
-    }
-
-    try {
-      localStorage.removeItem(LAST_ACTIVE_KEY);
-      localStorage.removeItem('drainzero-session');
-      Object.keys(localStorage).forEach((key) => {
-        if (key && (key.includes('supabase') || key.includes('drainzero'))) {
-          localStorage.removeItem(key);
-        }
-      });
-      Object.keys(sessionStorage).forEach((key) => {
-        if (key && (key.includes('supabase') || key.includes('drainzero'))) {
-          sessionStorage.removeItem(key);
-        }
-      });
-    } catch {}
-
-    setUser(null);
-    setOnboardingDone(false);
-    setUserProfile(null);
+    try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
+    clearAllState();
   };
 
   const refreshProfile = async () => {
@@ -193,10 +181,14 @@ export const AuthProvider = ({ children }) => {
     return await checkOnboarding(user.id);
   };
 
+  // ── Called by CategorySelection/AnalysisForm after income is saved ──
+  const markIncomeDataSaved = useCallback(() => setHasIncomeData(true), []);
+
   return (
     <AuthContext.Provider value={{
       user, loading, onboardingDone, userProfile,
-      loginWithGoogle, logout, refreshProfile
+      hasIncomeData, markIncomeDataSaved,
+      loginWithGoogle, logout, refreshProfile,
     }}>
       {children}
     </AuthContext.Provider>

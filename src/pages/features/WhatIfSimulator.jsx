@@ -19,13 +19,15 @@ const calcTaxOld = (taxable) => {
   return 112500 + (taxable - 1000000) * 0.30;
 };
 
+// FIX: Updated to FY 2025-26 Budget 2025 slabs
 const calcTaxNew = (taxable) => {
-  if (taxable <= 300000) return 0;
-  if (taxable <= 700000) return (taxable - 300000) * 0.05;
-  if (taxable <= 1000000) return 20000 + (taxable - 700000) * 0.10;
-  if (taxable <= 1200000) return 50000 + (taxable - 1000000) * 0.15;
-  if (taxable <= 1500000) return 80000 + (taxable - 1200000) * 0.20;
-  return 140000 + (taxable - 1500000) * 0.30;
+  if (taxable <= 400000)  return 0;
+  if (taxable <= 800000)  return (taxable - 400000) * 0.05;
+  if (taxable <= 1200000) return 20000 + (taxable - 800000) * 0.10;
+  if (taxable <= 1600000) return 60000 + (taxable - 1200000) * 0.15;
+  if (taxable <= 2000000) return 120000 + (taxable - 1600000) * 0.20;
+  if (taxable <= 2400000) return 200000 + (taxable - 2000000) * 0.25;
+  return 300000 + (taxable - 2400000) * 0.30;
 };
 
 const WhatIfSimulator = () => {
@@ -58,8 +60,11 @@ const WhatIfSimulator = () => {
     let taxOld = calcTaxOld(taxableOld);
     let taxNew = calcTaxNew(taxableNew);
 
+    // FIX: correct 87A rebates for FY 2025-26
+    // Old regime: full rebate if taxable income ≤ ₹5L (rebate ₹12,500)
     if (taxableOld <= 500000) taxOld = 0;
-    if (taxableNew <= 700000) taxNew = 0;
+    // New regime: full rebate if taxable income ≤ ₹12L (rebate ₹60,000)
+    if (taxableNew <= 1200000) taxNew = 0;
 
     const cessOld = taxOld * 0.04;
     const cessNew = taxNew * 0.04;
