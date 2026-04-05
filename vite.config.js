@@ -10,7 +10,7 @@ export default defineConfig({
     historyApiFallback: true,
   },
   build: {
-    chunkSizeWarningLimit: 800,
+    chunkSizeWarningLimit: 1600,
     rollupOptions: {
       output: {
         manualChunks: {
