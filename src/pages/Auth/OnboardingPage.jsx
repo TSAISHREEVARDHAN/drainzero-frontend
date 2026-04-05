@@ -91,17 +91,13 @@ const OnboardingPage = () => {
       const isMetro = ['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Hyderabad']
         .some(c => values.city?.toLowerCase().includes(c.toLowerCase()));
 
-      // ── Mark context synchronously FIRST ─────────────────────────────────
-      // This is the only thing ProtectedRoute checks — the DB saves below
-      // happen in the background so slow Supabase connections never block UX.
-      markOnboardingDone();
-
-      // ── Navigate immediately — don't wait for DB ──────────────────────────
-      navigate('/dashboard', { replace: true });
-
-      // ── Fire-and-forget: save user profile in background ─────────────────
-      const profileData = {
-        email               : user.email,
+      // ── 1. Save user profile — SYNCHRONOUS (critical: onboarding_done must
+      //    be in DB before we navigate, otherwise the next checkOnboarding
+      //    call will read false and bounce the user back to onboarding).
+      //
+      //    We UPDATE (not upsert) to avoid the users_email_key unique
+      //    constraint — email is already set when the trigger created the row.
+      const profilePayload = {
         name                : values.name,
         full_name           : values.name,
         age                 : parseInt(values.age) || 0,
@@ -118,22 +114,25 @@ const OnboardingPage = () => {
         updated_at          : new Date().toISOString(),
       };
 
-      // Try update first (row already exists from trigger), then insert
-      supabase.from('users').update(profileData).eq('id', user.id)
-        .then(({ error: updateErr }) => {
-          if (updateErr) {
-            // Row might not exist yet — try insert
-            return supabase.from('users').insert({ id: user.id, ...profileData })
-              .then(({ error: insertErr }) => {
-                if (insertErr && insertErr.code !== '23505') {
-                  console.warn('[Onboarding] Profile save failed:', insertErr.message);
-                }
-              });
-          }
-        })
-        .catch(e => console.warn('[Onboarding] Profile save error:', e.message));
+      const { error: updateErr } = await supabase
+        .from('users')
+        .update(profilePayload)
+        .eq('id', user.id);
 
-      // ── Fire-and-forget: save income profile in background ────────────────
+      if (updateErr) {
+        // If update fails (row doesn't exist yet), try insert
+        const { error: insertErr } = await supabase
+          .from('users')
+          .insert({ id: user.id, email: user.email, ...profilePayload });
+
+        // 23505 = unique violation → row exists from another path → safe to ignore
+        if (insertErr && insertErr.code !== '23505') {
+          // Log but don't block — the context flag will still allow navigation
+          console.warn('[Onboarding] Profile insert failed:', insertErr.message);
+        }
+      }
+
+      // ── 2. Save income profile — also synchronous but non-fatal ──────────
       const baseSalary = parseFloat(values.annualSalary) || 0;
       const bonus      = isSalaried ? (parseFloat(values.bonus) || 0) : 0;
 
@@ -149,22 +148,30 @@ const OnboardingPage = () => {
         is_metro        : isMetro,
       });
 
-      if (baseSalary > 0) {
-        markIncomeDataSaved();
-        supabase.from('income_profile')
-          .upsert({ user_id: user.id, ...incomePayload }, { onConflict: 'user_id' })
-          .catch(e => console.warn('[Onboarding] Income save error:', e.message));
+      try {
+        await supabase
+          .from('income_profile')
+          .upsert({ user_id: user.id, ...incomePayload }, { onConflict: 'user_id' });
+      } catch (incErr) {
+        console.warn('[Onboarding] Income save failed:', incErr?.message);
       }
 
-      // Background refresh to fully sync userProfile in context
-      refreshProfile().catch(() => {});
+      // ── 3. Update context AFTER DB save so refreshProfile won't overwrite ─
+      markOnboardingDone();
+      if (baseSalary > 0) markIncomeDataSaved();
+
+      // ── 4. Navigate — NO refreshProfile() call here. ─────────────────────
+      // refreshProfile() reads DB and can overwrite onboardingDone=true with
+      // false if there's any propagation delay, causing an infinite loop.
+      // Context is already correct from the marks above.
+      navigate('/dashboard', { replace: true });
 
     } catch (err) {
       console.error('[Onboarding] Submit error:', err);
       setError(err.message || 'Something went wrong. Please try again.');
+    } finally {
       setLoading(false);
     }
-    // Note: setLoading(false) not called in finally because we navigate away
   };
 
   // ─────────────────────────────────────────────

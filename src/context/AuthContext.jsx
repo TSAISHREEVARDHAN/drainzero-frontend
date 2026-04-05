@@ -6,64 +6,84 @@ import { supabase } from '../config/supabase';
 const AuthContext = createContext(null);
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
+
 const isCallbackPage = () =>
   window.location.pathname.toLowerCase().includes('/auth/callback');
 
+// Wraps a promise with a timeout so slow Supabase connections never hang forever
+const withTimeout = (promise, ms = 8000) =>
+  Promise.race([
+    promise,
+    new Promise((_, rej) =>
+      setTimeout(() => rej(new Error('DB query timed out')), ms)
+    ),
+  ]);
+
 // Ensure public.users row exists for this auth user.
 // The DB trigger only fires on the very first INSERT into auth.users.
-// Returning users whose public row was deleted (e.g. dashboard wipe) have no
-// row here, so checkOnboarding returns null and the app loops.
+// Returning users whose public row was deleted have no row here.
 export const ensurePublicUserRow = async (authUser) => {
   if (!authUser?.id) return null;
 
   const fullName =
     authUser.user_metadata?.full_name ||
-    authUser.user_metadata?.name       ||
-    authUser.email?.split('@')[0]      ||
+    authUser.user_metadata?.name ||
+    authUser.email?.split('@')[0] ||
     'User';
 
-  // Try to read first — cheapest path for existing users
-  const { data: existing } = await supabase
-    .from('users')
-    .select('id, onboarding_done, onboarding_complete')
-    .eq('id', authUser.id)
-    .maybeSingle();
-
-  if (existing) return existing;
+  // Read first — cheapest path for existing users
+  try {
+    const { data: existing } = await withTimeout(
+      supabase
+        .from('users')
+        .select('id, onboarding_done, onboarding_complete')
+        .eq('id', authUser.id)
+        .maybeSingle()
+    );
+    if (existing) return existing;
+  } catch {}
 
   // Row missing — create it
-  const { data: inserted, error } = await supabase
-    .from('users')
-    .insert({
-      id                  : authUser.id,
-      email               : authUser.email,
-      name                : fullName,
-      full_name           : fullName,
-      onboarding_done     : false,
-      onboarding_complete : false,
-      updated_at          : new Date().toISOString(),
-    })
-    .select('id, onboarding_done, onboarding_complete')
-    .maybeSingle();
+  try {
+    const { data: inserted, error } = await withTimeout(
+      supabase
+        .from('users')
+        .insert({
+          id                  : authUser.id,
+          email               : authUser.email,
+          name                : fullName,
+          full_name           : fullName,
+          onboarding_done     : false,
+          onboarding_complete : false,
+          updated_at          : new Date().toISOString(),
+        })
+        .select('id, onboarding_done, onboarding_complete')
+        .maybeSingle()
+    );
 
-  if (error && error.code !== '23505') {
-    // 23505 = unique violation (another request beat us to it) — safe to ignore
-    console.error('[Auth] ensurePublicUserRow:', error.message);
-  }
+    if (inserted) return inserted;
+    if (error && error.code !== '23505') {
+      console.warn('[Auth] ensurePublicUserRow insert error:', error.message);
+    }
+  } catch {}
 
-  if (inserted) return inserted;
+  // Unique conflict or timeout — read again
+  try {
+    const { data: retry } = await withTimeout(
+      supabase
+        .from('users')
+        .select('id, onboarding_done, onboarding_complete')
+        .eq('id', authUser.id)
+        .maybeSingle()
+    );
+    return retry;
+  } catch {}
 
-  // If insert failed with a unique conflict, just read the row
-  const { data: retry } = await supabase
-    .from('users')
-    .select('id, onboarding_done, onboarding_complete')
-    .eq('id', authUser.id)
-    .maybeSingle();
-
-  return retry;
+  return null;
 };
 
 // ─── provider ────────────────────────────────────────────────────────────────
+
 export const AuthProvider = ({ children }) => {
   const [user,           setUser]           = useState(null);
   const [loading,        setLoading]        = useState(true);
@@ -71,10 +91,9 @@ export const AuthProvider = ({ children }) => {
   const [userProfile,    setUserProfile]    = useState(null);
   const [hasIncomeData,  setHasIncomeData]  = useState(false);
 
-  const initDone   = useRef(false);
-  const safetyRef  = useRef(null);
+  const initDone  = useRef(false);
+  const safetyRef = useRef(null);
 
-  // ── clear all session state ───────────────────────────────────────────────
   const clearAllState = useCallback(() => {
     setUser(null);
     setOnboardingDone(false);
@@ -82,19 +101,21 @@ export const AuthProvider = ({ children }) => {
     setHasIncomeData(false);
   }, []);
 
-  // ── fetch onboarding + income status from DB ──────────────────────────────
   const checkOnboarding = useCallback(async (uid) => {
     if (!uid) return false;
     try {
-      const { data: userData, error } = await supabase
-        .from('users')
-        .select(
-          'id, name, full_name, email, age, gender, marital_status, ' +
-          'employment_type, sector, profession, state, city, is_metro, ' +
-          'onboarding_done, onboarding_complete'
-        )
-        .eq('id', uid)
-        .maybeSingle();
+      // Both queries have individual timeouts so they never hang
+      const { data: userData, error } = await withTimeout(
+        supabase
+          .from('users')
+          .select(
+            'id, name, full_name, email, age, gender, marital_status, ' +
+            'employment_type, sector, profession, state, city, is_metro, ' +
+            'onboarding_done, onboarding_complete'
+          )
+          .eq('id', uid)
+          .maybeSingle()
+      );
 
       if (error) throw error;
       if (!userData) {
@@ -108,23 +129,29 @@ export const AuthProvider = ({ children }) => {
       setOnboardingDone(done);
       setUserProfile(userData);
 
-      const { data: income } = await supabase
-        .from('income_profile')
-        .select('user_id, gross_salary')
-        .eq('user_id', uid)
-        .maybeSingle();
+      try {
+        const { data: income } = await withTimeout(
+          supabase
+            .from('income_profile')
+            .select('user_id, gross_salary')
+            .eq('user_id', uid)
+            .maybeSingle()
+        );
+        setHasIncomeData(!!(income && Number(income.gross_salary) > 0));
+      } catch {
+        // Income query timed out — non-fatal
+        setHasIncomeData(false);
+      }
 
-      setHasIncomeData(!!(income && Number(income.gross_salary) > 0));
       return done;
     } catch (err) {
-      console.error('[Auth] checkOnboarding:', err.message);
-      // On network error, don't lock user out — let them through
+      console.error('[Auth] checkOnboarding error:', err.message);
+      // On timeout/network error, let user through rather than locking them out
       setOnboardingDone(true);
       return true;
     }
   }, []);
 
-  // ── handle an authenticated user (create row if needed, check onboarding) ─
   const processUser = useCallback(async (authUser) => {
     if (!authUser) return;
     await ensurePublicUserRow(authUser);
@@ -136,40 +163,22 @@ export const AuthProvider = ({ children }) => {
     if (initDone.current) return;
     initDone.current = true;
 
-    // Safety valve: never leave the app spinner-locked forever
+    // Safety valve: never leave app spinner-locked forever
     safetyRef.current = setTimeout(() => {
-      console.warn('[Auth] safety timer fired — forcing loading=false');
+      console.warn('[Auth] safety timer — forcing loading=false');
       setLoading(false);
-    }, 12000);
+    }, 15000);
 
     const done = () => {
       clearTimeout(safetyRef.current);
       setLoading(false);
     };
 
-    // ── Subscribe to Supabase auth events ─────────────────────────────────
-    //
-    // Event sequence for a FRESH login via Google OAuth (PKCE):
-    //   1. INITIAL_SESSION  → session = null (no stored session yet)
-    //   2. SIGNED_IN        → session = { user, ... } (after code exchange)
-    //
-    // Event sequence for a RETURNING user (stored session in localStorage):
-    //   1. INITIAL_SESSION  → session = { user, ... }  ← we act here
-    //   (no SIGNED_IN unless the token was refreshed)
-    //
-    // Event sequence for a LOGGED OUT user:
-    //   1. INITIAL_SESSION  → session = null
-    //   (no SIGNED_IN)
-    //
-    // We MUST NOT call done() on INITIAL_SESSION with null when we're on the
-    // callback page — SIGNED_IN hasn't fired yet (exchange in progress).
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('[Auth]', event, session?.user?.email ?? 'no user');
 
         if (event === 'TOKEN_REFRESHED') {
-          // Silently update user reference, no loading change needed
           setUser(session?.user ?? null);
           return;
         }
@@ -182,18 +191,12 @@ export const AuthProvider = ({ children }) => {
 
         if (event === 'INITIAL_SESSION') {
           if (session?.user) {
-            // Returning user — process immediately
             setUser(session.user);
             await processUser(session.user);
             done();
           } else {
-            // No session yet.
-            // If we're on the callback page, SIGNED_IN will fire after exchange.
-            // Anywhere else, the user is simply logged out.
-            if (!isCallbackPage()) {
-              done();
-            }
-            // else: stay loading=true, wait for SIGNED_IN
+            if (!isCallbackPage()) done();
+            // else stay loading=true, wait for SIGNED_IN
           }
           return;
         }
@@ -201,9 +204,7 @@ export const AuthProvider = ({ children }) => {
         if (event === 'SIGNED_IN') {
           const u = session?.user ?? null;
           setUser(u);
-          if (u) {
-            await processUser(u);
-          }
+          if (u) await processUser(u);
           done();
           return;
         }
@@ -218,6 +219,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // ── public API ────────────────────────────────────────────────────────────
+
   const loginWithGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -234,13 +236,16 @@ export const AuthProvider = ({ children }) => {
     clearAllState();
   };
 
+  // NOTE: refreshProfile intentionally NOT exported anymore.
+  // Calling it after onboarding can overwrite onboardingDone=true with false
+  // if the DB save hasn't propagated yet. Profile data reloads on next login.
   const refreshProfile = async () => {
     if (!user) return false;
     return await checkOnboarding(user.id);
   };
 
-  const markOnboardingDone  = useCallback(() => setOnboardingDone(true),  []);
-  const markIncomeDataSaved = useCallback(() => setHasIncomeData(true),   []);
+  const markOnboardingDone  = useCallback(() => setOnboardingDone(true), []);
+  const markIncomeDataSaved = useCallback(() => setHasIncomeData(true),  []);
 
   return (
     <AuthContext.Provider value={{
