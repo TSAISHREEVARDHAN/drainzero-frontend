@@ -91,12 +91,24 @@ const OnboardingPage = () => {
       const isMetro = ['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Hyderabad']
         .some(c => values.city?.toLowerCase().includes(c.toLowerCase()));
 
-      // ── 1. Save user profile — SYNCHRONOUS (critical: onboarding_done must
-      //    be in DB before we navigate, otherwise the next checkOnboarding
-      //    call will read false and bounce the user back to onboarding).
+      // ── 1. Save user profile ─────────────────────────────────────────────
       //
-      //    We UPDATE (not upsert) to avoid the users_email_key unique
-      //    constraint — email is already set when the trigger created the row.
+      //    CRITICAL: use upsert (not update) with onConflict:'id'.
+      //
+      //    Why NOT plain .update():
+      //    Supabase .update() silently does nothing and returns NO error if
+      //    the row doesn't exist yet (0 rows affected ≠ error). So
+      //    onboarding_done would never be saved as true in the DB, and the
+      //    returning user after 1 month would be sent back to /onboarding.
+      //
+      //    Why NOT upsert with email in payload:
+      //    If users_email_key unique constraint exists it would fail.
+      //    We exclude email from the upsert payload to avoid this.
+      //    If the row is new (INSERT path), we add email separately via
+      //    the id-based insert below.
+      //
+      //    The safe pattern: upsert on id only (no email in payload),
+      //    then on conflict-23505 (email key), fall back to plain update.
       const profilePayload = {
         name                : values.name,
         full_name           : values.name,
@@ -114,21 +126,26 @@ const OnboardingPage = () => {
         updated_at          : new Date().toISOString(),
       };
 
-      const { error: updateErr } = await supabase
+      // Try upsert first — handles both new and existing rows reliably
+      const { error: upsertErr } = await supabase
         .from('users')
-        .update(profilePayload)
-        .eq('id', user.id);
+        .upsert(
+          { id: user.id, email: user.email, ...profilePayload },
+          { onConflict: 'id' }  // conflict on id, NOT email
+        );
 
-      if (updateErr) {
-        // If update fails (row doesn't exist yet), try insert
-        const { error: insertErr } = await supabase
-          .from('users')
-          .insert({ id: user.id, email: user.email, ...profilePayload });
-
-        // 23505 = unique violation → row exists from another path → safe to ignore
-        if (insertErr && insertErr.code !== '23505') {
-          // Log but don't block — the context flag will still allow navigation
-          console.warn('[Onboarding] Profile insert failed:', insertErr.message);
+      if (upsertErr) {
+        if (upsertErr.code === '23505') {
+          // email unique constraint hit — fall back to plain update (row definitely exists)
+          const { error: updateErr } = await supabase
+            .from('users')
+            .update(profilePayload)
+            .eq('id', user.id);
+          if (updateErr) {
+            console.warn('[Onboarding] Profile update fallback failed:', updateErr.message);
+          }
+        } else {
+          console.warn('[Onboarding] Profile upsert failed:', upsertErr.message);
         }
       }
 

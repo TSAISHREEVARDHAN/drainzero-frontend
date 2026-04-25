@@ -139,8 +139,10 @@ export const AuthProvider = ({ children }) => {
         );
         setHasIncomeData(!!(income && Number(income.gross_salary) > 0));
       } catch {
-        // Income query timed out — non-fatal
-        setHasIncomeData(false);
+        // Income query timed out — if user is already onboarded, assume they
+        // have income data (they entered it during onboarding). Setting false
+        // here would show the "add income" gate incorrectly on reconnect.
+        setHasIncomeData(done);
       }
 
       return done;

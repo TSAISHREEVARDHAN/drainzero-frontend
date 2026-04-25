@@ -96,9 +96,8 @@ const ProfilePage = () => {
       const isMetro = ['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Hyderabad'].some(
         c => values.city?.toLowerCase().includes(c.toLowerCase())
       );
-      // FIX: use UPDATE (not upsert) to avoid users_email_key unique constraint.
-      // The row already exists from ensurePublicUserRow — we just update it.
-      const { error: err } = await supabase.from('users').update({
+
+      const profileData = {
         name               : values.name,
         full_name          : values.name,
         age                : parseInt(values.age) || 0,
@@ -113,10 +112,29 @@ const ProfilePage = () => {
         onboarding_done    : true,
         onboarding_complete: true,
         updated_at         : new Date().toISOString(),
-      }).eq('id', user.id);
-      if (err) throw new Error(err.message);
-      // FIX: do NOT call refreshProfile() — it re-reads DB and can overwrite
-      // onboardingDone=true with false if propagation is delayed.
+      };
+
+      // Use upsert on id (not email) — handles both new and existing rows.
+      // Plain .update() silently does nothing if the row doesn't exist (0 rows, no error),
+      // which means returning users could find their profile data missing.
+      const { error: upsertErr } = await supabase
+        .from('users')
+        .upsert(
+          { id: user.id, email: user.email, ...profileData },
+          { onConflict: 'id' }
+        );
+
+      if (upsertErr) {
+        if (upsertErr.code === '23505') {
+          // email unique constraint exists — fall back to plain update
+          const { error: updateErr } = await supabase
+            .from('users').update(profileData).eq('id', user.id);
+          if (updateErr) throw new Error(updateErr.message);
+        } else {
+          throw new Error(upsertErr.message);
+        }
+      }
+
       message.success('✅ Personal details saved!');
     } catch (err) {
       setError(err.message);
