@@ -29,7 +29,7 @@ const STATES = [
 const ProfilePage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, userProfile, refreshProfile, markIncomeDataSaved } = useAuth();
+  const { user, loading, userProfile, refreshProfile, markIncomeDataSaved } = useAuth();
   // If user arrived from AnalysisForm, these let us navigate back with context restored
   const returnTo       = location.state?.from         || null;
   const returnState    = location.state?.locationState || null;
@@ -39,53 +39,101 @@ const ProfilePage = () => {
   const [savingIncome, setSavingIncome] = useState(false);
   const [error,   setError]   = useState('');
   const [incomeError, setIncomeError] = useState('');
-  const [loaded,  setLoaded]  = useState(false);
+  const [loaded,     setLoaded]     = useState(false);
+  // localName updates instantly after save so the header reflects the new name
+  // without needing a full context refresh or a DB round-trip
+  const [localName,  setLocalName]  = useState('');
 
   const inputStyle  = { borderRadius: 12, height: 48 };
   const labelStyle  = { color: '#08457E', fontWeight: 600 };
   const cardStyle   = { borderRadius: 20, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.05)', marginBottom: 24 };
 
+  // Helper: get best display name — never shows email address
+  const getDisplayName = (profile, authUser) => {
+    const candidates = [
+      profile?.name,
+      profile?.full_name,
+      authUser?.user_metadata?.full_name,
+      authUser?.user_metadata?.name,
+    ];
+    for (const c of candidates) {
+      if (c && !c.includes('@') && c.trim().length > 0) return c.trim();
+    }
+    // Last resort: capitalise the email local part
+    const local = (authUser?.email || '').split('@')[0];
+    return local.split(/[._-]/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  };
+
   useEffect(() => {
     const loadProfile = async () => {
+      // ── IMPORTANT: only fire AFTER AuthContext finishes loading ──
+      // If we query Supabase while AuthContext is also querying (during processUser),
+      // both compete for the auth token storage lock → "lock was released" error.
+      // Using userProfile from context avoids the extra DB call entirely.
+
       let profile = userProfile;
+
+      // Only go direct to DB if context has no profile yet
       if (!profile && user) {
-        const { data } = await supabase.from('users').select('*').eq('id', user.id).maybeSingle();
-        profile = data;
+        try {
+          const { data } = await supabase
+            .from('users').select('*').eq('id', user.id).maybeSingle();
+          profile = data;
+        } catch (e) {
+          console.warn('[ProfilePage] profile fetch failed:', e.message);
+        }
       }
+
       if (profile) {
+        const displayName = getDisplayName(profile, user);
+        setLocalName(displayName);
+
         personalForm.setFieldsValue({
-          name           : profile.name            || '',
+          name           : displayName,
           age            : profile.age             || '',
-          gender         : profile.gender          || '',
-          marital_status : profile.marital_status  || '',
+          gender         : profile.gender          || 'Male',
+          marital_status : profile.marital_status  || 'Single',
           employment_type: profile.employment_type || '',
           sector         : profile.sector          || '',
           profession     : profile.profession      || '',
           state          : profile.state           || '',
           city           : profile.city            || '',
         });
+      } else if (user) {
+        // No profile row yet — pre-fill name from Google metadata
+        const googleName = getDisplayName(null, user);
+        setLocalName(googleName);
+        personalForm.setFieldsValue({ name: googleName });
       }
 
-      // Load income profile
+      // Income profile — separate table, no auth token competition
       if (user) {
-        const { data: inc } = await supabase.from('income_profile').select('*').eq('user_id', user.id).maybeSingle();
-        if (inc) {
-          incomeForm.setFieldsValue({
-            annualSalary    : inc.gross_salary      || 0,
-            bonus           : inc.bonus             || 0,
-            otherIncome     : inc.other_income      || 0,
-            deduction80C    : inc.section_80c       || 0,
-            deduction80D    : inc.section_80d       || 0,
-            deductionNPS    : inc.nps_personal      || 0,
-            hraDeduction    : inc.hra_deduction     || inc.hra_received || 0,
-            regimePreference: inc.preferred_regime  || 'Auto Suggest',
-          });
+        try {
+          const { data: inc } = await supabase
+            .from('income_profile').select('*').eq('user_id', user.id).maybeSingle();
+          if (inc) {
+            incomeForm.setFieldsValue({
+              annualSalary    : inc.gross_salary      || 0,
+              bonus           : inc.bonus             || 0,
+              otherIncome     : inc.other_income      || 0,
+              deduction80C    : inc.section_80c       || 0,
+              deduction80D    : inc.section_80d       || 0,
+              deductionNPS    : inc.nps_personal      || 0,
+              hraDeduction    : inc.hra_deduction     || inc.hra_received || 0,
+              regimePreference: inc.preferred_regime  || 'Auto Suggest',
+            });
+          }
+        } catch (e) {
+          console.warn('[ProfilePage] income fetch failed:', e.message);
         }
       }
       setLoaded(true);
     };
-    loadProfile();
-  }, [user, userProfile]);
+
+    // CRITICAL: wait for auth to be done before making any DB calls
+    if (!loading && user) loadProfile();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, user, userProfile]);
 
   // ── Save personal details ──
   const handleSavePersonal = async () => {
@@ -134,6 +182,10 @@ const ProfilePage = () => {
           throw new Error(upsertErr.message);
         }
       }
+
+      // Update localName immediately so header reflects new name without refresh
+      const savedName = values.name?.trim();
+      if (savedName) setLocalName(savedName);
 
       message.success('✅ Personal details saved!');
     } catch (err) {
@@ -377,11 +429,11 @@ const ProfilePage = () => {
           <Card style={{ ...cardStyle, background: '#08457E' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
               <Avatar size={64} style={{ background: '#5B92E5', fontSize: 28 }}>
-                {user?.email?.[0]?.toUpperCase() || 'U'}
+                {localName ? localName[0].toUpperCase() : (user?.email?.[0]?.toUpperCase() || 'U')}
               </Avatar>
               <div>
                 <Title level={4} style={{ color: '#FFFFFF', margin: 0 }}>
-                  {userProfile?.name || user?.email}
+                  {localName || user?.email || ''}
                 </Title>
                 <Text style={{ color: '#CCF1FF', fontSize: 13 }}>{user?.email}</Text>
                 <div style={{ marginTop: 8 }}>

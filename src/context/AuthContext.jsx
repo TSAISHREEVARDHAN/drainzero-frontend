@@ -5,85 +5,107 @@ import { supabase } from '../config/supabase';
 
 const AuthContext = createContext(null);
 
-// ─── helpers ─────────────────────────────────────────────────────────────────
-
 const isCallbackPage = () =>
   window.location.pathname.toLowerCase().includes('/auth/callback');
 
-// Wraps a promise with a timeout so slow Supabase connections never hang forever
-const withTimeout = (promise, ms = 8000) =>
-  Promise.race([
-    promise,
-    new Promise((_, rej) =>
-      setTimeout(() => rej(new Error('DB query timed out')), ms)
-    ),
-  ]);
+// ── Single in-flight guard ────────────────────────────────────────────────────
+// Prevents two concurrent processUser() calls (e.g. INITIAL_SESSION + SIGNED_IN
+// firing at the same time) which both trigger Supabase queries that fight for
+// the auth token storage lock → "lock was released because another request stole it"
+let processingUser = false;
 
-// Ensure public.users row exists for this auth user.
-// The DB trigger only fires on the very first INSERT into auth.users.
-// Returning users whose public row was deleted have no row here.
+// ── Get the best display name for a Google OAuth user ────────────────────────
+const getGoogleName = (authUser) => {
+  if (!authUser) return '';
+  const meta = authUser.user_metadata || {};
+  // Google puts the full name in full_name or name
+  const name =
+    meta.full_name ||
+    meta.name      ||
+    meta.given_name ||
+    '';
+  // Never use the email as a display name
+  if (name && !name.includes('@')) return name;
+  // Last resort: capitalise the local part of the email
+  const local = (authUser.email || '').split('@')[0];
+  return local
+    .split(/[._-]/)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+};
+
+// ── Ensure public.users row exists — serialised, never concurrent ─────────────
 export const ensurePublicUserRow = async (authUser) => {
   if (!authUser?.id) return null;
 
-  const fullName =
-    authUser.user_metadata?.full_name ||
-    authUser.user_metadata?.name ||
-    authUser.email?.split('@')[0] ||
-    'User';
+  const googleName = getGoogleName(authUser);
 
-  // Read first — cheapest path for existing users
   try {
-    const { data: existing } = await withTimeout(
-      supabase
-        .from('users')
-        .select('id, onboarding_done, onboarding_complete')
-        .eq('id', authUser.id)
-        .maybeSingle()
-    );
-    if (existing) return existing;
-  } catch {}
+    const { data: existing } = await supabase
+      .from('users')
+      .select('id, name, full_name, onboarding_done, onboarding_complete')
+      .eq('id', authUser.id)
+      .maybeSingle();
 
-  // Row missing — create it
-  try {
-    const { data: inserted, error } = await withTimeout(
-      supabase
-        .from('users')
-        .insert({
-          id                  : authUser.id,
-          email               : authUser.email,
-          name                : fullName,
-          full_name           : fullName,
-          onboarding_done     : false,
-          onboarding_complete : false,
-          updated_at          : new Date().toISOString(),
-        })
-        .select('id, onboarding_done, onboarding_complete')
-        .maybeSingle()
-    );
+    if (existing) {
+      // Row exists — fix name if it looks like an email fragment or is blank
+      const needsNameFix =
+        !existing.name ||
+        existing.name.includes('@') ||
+        existing.name === authUser.email?.split('@')[0];
 
-    if (inserted) return inserted;
-    if (error && error.code !== '23505') {
-      console.warn('[Auth] ensurePublicUserRow insert error:', error.message);
+      if (needsNameFix && googleName) {
+        // Fire-and-forget — don't await so we don't delay auth flow
+        supabase
+          .from('users')
+          .update({ name: googleName, full_name: googleName, updated_at: new Date().toISOString() })
+          .eq('id', authUser.id)
+          .then(() => {})
+          .catch(() => {});
+      }
+      return {
+        ...existing,
+        name      : needsNameFix ? googleName : existing.name,
+        full_name : needsNameFix ? googleName : existing.full_name,
+      };
     }
   } catch {}
 
-  // Unique conflict or timeout — read again
+  // Row missing — insert
   try {
-    const { data: retry } = await withTimeout(
-      supabase
-        .from('users')
-        .select('id, onboarding_done, onboarding_complete')
-        .eq('id', authUser.id)
-        .maybeSingle()
-    );
+    const { data: inserted } = await supabase
+      .from('users')
+      .insert({
+        id                  : authUser.id,
+        email               : authUser.email,
+        name                : googleName,
+        full_name           : googleName,
+        onboarding_done     : false,
+        onboarding_complete : false,
+        updated_at          : new Date().toISOString(),
+      })
+      .select('id, name, full_name, onboarding_done, onboarding_complete')
+      .maybeSingle();
+
+    if (inserted) return inserted;
+  } catch (e) {
+    if (e?.code !== '23505') console.warn('[Auth] ensurePublicUserRow:', e?.message);
+  }
+
+  // Conflict — read again
+  try {
+    const { data: retry } = await supabase
+      .from('users')
+      .select('id, name, full_name, onboarding_done, onboarding_complete')
+      .eq('id', authUser.id)
+      .maybeSingle();
     return retry;
   } catch {}
 
   return null;
 };
 
-// ─── provider ────────────────────────────────────────────────────────────────
-
+// ─── Provider ─────────────────────────────────────────────────────────────────
 export const AuthProvider = ({ children }) => {
   const [user,           setUser]           = useState(null);
   const [loading,        setLoading]        = useState(true);
@@ -101,12 +123,14 @@ export const AuthProvider = ({ children }) => {
     setHasIncomeData(false);
   }, []);
 
-  const checkOnboarding = useCallback(async (uid) => {
+  const checkOnboarding = useCallback(async (uid, rowFromEnsure) => {
     if (!uid) return false;
     try {
-      // Both queries have individual timeouts so they never hang
-      const { data: userData, error } = await withTimeout(
-        supabase
+      // If ensurePublicUserRow already returned the row, skip re-fetching users table
+      let userData = rowFromEnsure || null;
+
+      if (!userData) {
+        const { data, error } = await supabase
           .from('users')
           .select(
             'id, name, full_name, email, age, gender, marital_status, ' +
@@ -114,10 +138,24 @@ export const AuthProvider = ({ children }) => {
             'onboarding_done, onboarding_complete'
           )
           .eq('id', uid)
-          .maybeSingle()
-      );
+          .maybeSingle();
 
-      if (error) throw error;
+        if (error) throw error;
+        userData = data;
+      } else if (!userData.age) {
+        // rowFromEnsure only has limited fields — fetch full profile
+        const { data } = await supabase
+          .from('users')
+          .select(
+            'id, name, full_name, email, age, gender, marital_status, ' +
+            'employment_type, sector, profession, state, city, is_metro, ' +
+            'onboarding_done, onboarding_complete'
+          )
+          .eq('id', uid)
+          .maybeSingle();
+        userData = data || userData;
+      }
+
       if (!userData) {
         setOnboardingDone(false);
         setUserProfile(null);
@@ -129,43 +167,45 @@ export const AuthProvider = ({ children }) => {
       setOnboardingDone(done);
       setUserProfile(userData);
 
+      // Income check — separate query, non-fatal
       try {
-        const { data: income } = await withTimeout(
-          supabase
-            .from('income_profile')
-            .select('user_id, gross_salary')
-            .eq('user_id', uid)
-            .maybeSingle()
-        );
+        const { data: income } = await supabase
+          .from('income_profile')
+          .select('user_id, gross_salary')
+          .eq('user_id', uid)
+          .maybeSingle();
         setHasIncomeData(!!(income && Number(income.gross_salary) > 0));
       } catch {
-        // Income query timed out — if user is already onboarded, assume they
-        // have income data (they entered it during onboarding). Setting false
-        // here would show the "add income" gate incorrectly on reconnect.
+        // If income query times out, assume income exists for onboarded users
         setHasIncomeData(done);
       }
 
       return done;
     } catch (err) {
       console.error('[Auth] checkOnboarding error:', err.message);
-      // On timeout/network error, let user through rather than locking them out
-      setOnboardingDone(true);
+      setOnboardingDone(true); // let user through on error
       return true;
     }
   }, []);
 
+  // ── processUser — serialised with in-flight guard ─────────────────────────
   const processUser = useCallback(async (authUser) => {
-    if (!authUser) return;
-    await ensurePublicUserRow(authUser);
-    await checkOnboarding(authUser.id);
+    if (!authUser || processingUser) return;
+    processingUser = true;
+    try {
+      // Sequential — never concurrent — so they don't fight for the token lock
+      const row = await ensurePublicUserRow(authUser);
+      await checkOnboarding(authUser.id, row);
+    } finally {
+      processingUser = false;
+    }
   }, [checkOnboarding]);
 
-  // ── main auth init — runs once ────────────────────────────────────────────
+  // ── Main auth init ────────────────────────────────────────────────────────
   useEffect(() => {
     if (initDone.current) return;
     initDone.current = true;
 
-    // Safety valve: never leave app spinner-locked forever
     safetyRef.current = setTimeout(() => {
       console.warn('[Auth] safety timer — forcing loading=false');
       setLoading(false);
@@ -178,8 +218,6 @@ export const AuthProvider = ({ children }) => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('[Auth]', event, session?.user?.email ?? 'no user');
-
         if (event === 'TOKEN_REFRESHED') {
           setUser(session?.user ?? null);
           return;
@@ -195,11 +233,8 @@ export const AuthProvider = ({ children }) => {
           if (session?.user) {
             setUser(session.user);
             await processUser(session.user);
-            done();
-          } else {
-            if (!isCallbackPage()) done();
-            // else stay loading=true, wait for SIGNED_IN
           }
+          if (!isCallbackPage()) done();
           return;
         }
 
@@ -220,8 +255,6 @@ export const AuthProvider = ({ children }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── public API ────────────────────────────────────────────────────────────
-
   const loginWithGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -234,17 +267,15 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
+    processingUser = false;
     try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
     clearAllState();
   };
 
-  // NOTE: refreshProfile intentionally NOT exported anymore.
-  // Calling it after onboarding can overwrite onboardingDone=true with false
-  // if the DB save hasn't propagated yet. Profile data reloads on next login.
-  const refreshProfile = async () => {
+  const refreshProfile = useCallback(async () => {
     if (!user) return false;
     return await checkOnboarding(user.id);
-  };
+  }, [user, checkOnboarding]);
 
   const markOnboardingDone  = useCallback(() => setOnboardingDone(true), []);
   const markIncomeDataSaved = useCallback(() => setHasIncomeData(true),  []);

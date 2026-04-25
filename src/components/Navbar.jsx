@@ -44,10 +44,10 @@ const Navbar = () => {
             <Dropdown menu={{ items: menuItems, onClick: ({ key }) => { const item = menuItems.find(m => m.key === key); if (item?.onClick) item.onClick(); } }} placement="bottomRight" arrow>
               <div style={{ cursor:'pointer', display:'flex', alignItems:'center', gap:8, padding:'6px 12px', borderRadius:10, border:'1px solid #E5E7EB', background:'#FAFAFA' }}>
                 <Avatar size={28} style={{ background:'#EEF3FA', color:'#08457E', fontSize:12, fontWeight:700, flexShrink:0 }} icon={<UserOutlined />}>
-                  {userProfile?.name?.[0]?.toUpperCase()}
+                  {(userProfile?.name && !userProfile.name.includes('@')) ? userProfile.name[0].toUpperCase() : (user?.email?.[0]?.toUpperCase() || 'U')}
                 </Avatar>
                 <span style={{ color:'#08457E', fontSize:13, fontWeight:600, maxWidth:110, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                  {userProfile?.name?.split(' ')[0] || user?.email?.split('@')[0]}
+                  {(userProfile?.name && !userProfile.name.includes('@')) ? userProfile.name.split(' ')[0] : 'Hi!'}
                 </span>
                 <span style={{ color:'#9CA3AF', fontSize:10 }}>▾</span>
               </div>
@@ -67,10 +67,10 @@ const Navbar = () => {
         title={
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
             <Avatar size={36} style={{ background:'#EEF3FA', color:'#08457E', fontWeight:700 }}>
-              {userProfile?.name?.[0]?.toUpperCase() || <UserOutlined />}
+              {(userProfile?.name && !userProfile.name.includes('@')) ? userProfile.name[0].toUpperCase() : <UserOutlined />}
             </Avatar>
             <div>
-              <div style={{ fontWeight:700, color:'#08457E', fontSize:15 }}>{userProfile?.name || 'User'}</div>
+              <div style={{ fontWeight:700, color:'#08457E', fontSize:15 }}>{(userProfile?.name && !userProfile.name.includes('@')) ? userProfile.name : (userProfile?.full_name && !userProfile.full_name.includes('@')) ? userProfile.full_name : 'My Account'}</div>
               <div style={{ fontSize:12, color:'#6B7280' }}>{user?.email}</div>
             </div>
           </div>

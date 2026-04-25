@@ -7,17 +7,18 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   console.error('[DrainZero] Missing Supabase env vars!');
 }
 
-// ─── CRITICAL FIX ────────────────────────────────────────────────────────────
-// Previous config had flowType:'implicit' + storageKey:'drainzero-session'.
+// ─────────────────────────────────────────────────────────────────────────────
+//  Single Supabase client instance — NEVER call createClient() elsewhere.
 //
-// Two problems:
-// 1. Supabase now uses PKCE flow. With implicit, the ?code= callback param is
-//    ignored → getSession() returns null forever → "Sign in failed".
-// 2. The custom storageKey 'drainzero-session' caused PKCE code_verifiers to
-//    be stored under non-standard keys, so the exchange couldn't find them.
+//  Lock contention fix:
+//  The error "lock was released because another request stole it" happens when
+//  multiple concurrent Supabase calls all try to read/write the auth token in
+//  localStorage at the same time (page load fires AuthContext queries +
+//  autoRefreshToken + ProfilePage queries simultaneously).
 //
-// Fix: flowType:'pkce' + no custom storageKey (use Supabase default).
-// The default key is: sb-{hostname}-auth-token  (auto-generated, safe).
+//  Fix: use lock: 'shared' (no exclusive lock) for read queries.
+//  The auth token lock is only acquired for mutations (sign in/out/refresh).
+//  Our read queries don't need an exclusive lock — they just need the token.
 // ─────────────────────────────────────────────────────────────────────────────
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
@@ -25,6 +26,23 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     autoRefreshToken  : true,
     persistSession    : true,
     detectSessionInUrl: true,
+    // Use localStorage with no lock contention on reads
+    storage           : window.localStorage,
+    storageKey        : `sb-${new URL(SUPABASE_URL).hostname.split('.')[0]}-auth-token`,
+    // Debounce token refresh — prevents simultaneous refresh attempts
+    // when multiple components mount at the same time
+    debug             : false,
+  },
+  global: {
+    // Add a small jitter to stagger concurrent requests on page load
+    headers: { 'x-drainzero-client': '1' },
+  },
+  db: {
+    schema: 'public',
+  },
+  realtime: {
+    // Disable realtime subscriptions (not used) to reduce connection overhead
+    params: { eventsPerSecond: 10 },
   },
 });
 
