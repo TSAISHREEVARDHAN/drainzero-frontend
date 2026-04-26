@@ -37,9 +37,10 @@ export const mapFormToProfile = (formData) => {
     education_loan_interest : Number(formData.educationLoanInterest  || 0),
     donations_80g           : Number(formData.donations80G           || 0),
     hra_deduction           : Number(formData.hraDeduction           || 0),
-    rent_paid               : formData.hraDeduction
-                              ? Number(formData.hraDeduction) + (annualSalary * 0.04)
-                              : 0,
+    // rent_paid: use explicitly provided rentPaid field if available.
+    // Do NOT guess from hraDeduction — the HRA exemption formula needs actual rent,
+    // and hraDeduction is the RESULT (exemption), not the rent itself.
+    rent_paid               : Number(formData.rentPaid || formData.rent_paid || 0),
     home_loan_interest      : Number(formData.loanInterestPaid || formData.homeLoanInterest || 0),
     dividend_income         : Number(formData.dividendIncome   || 0),
     preferred_regime        : formData.regimePreference || 'Auto Suggest',

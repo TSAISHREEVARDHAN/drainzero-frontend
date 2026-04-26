@@ -72,7 +72,7 @@ const WhatIfSimulator = () => {
     const finalOld = Math.round(taxOld + cessOld);
     const finalNew = Math.round(taxNew + cessNew);
     const savings = Math.abs(finalOld - finalNew);
-    const better = finalOld <= finalNew ? 'Old Regime' : 'New Regime';
+    const better = finalNew <= finalOld ? 'New Regime' : 'Old Regime';
 
     const effectiveRateOld = income > 0 ? ((finalOld / income) * 100).toFixed(1) : 0;
     const effectiveRateNew = income > 0 ? ((finalNew / income) * 100).toFixed(1) : 0;

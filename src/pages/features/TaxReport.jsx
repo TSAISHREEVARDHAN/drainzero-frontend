@@ -196,7 +196,7 @@ const TaxReport = () => {
         {/* Gaps */}
         {gaps.length > 0 && (
           <div className="rp-section">
-            <div className="rp-title">🔍 Tax Leakage Gaps</div>
+            <div className="rp-title">🔍 Missed Deductions & Gaps</div>
             {gaps.map((g,i)=>(
               <div key={i} className="rp-row" style={{ display:'flex',justifyContent:'space-between',padding:'10px 0',gap:16,flexWrap:'wrap' }}>
                 <div>

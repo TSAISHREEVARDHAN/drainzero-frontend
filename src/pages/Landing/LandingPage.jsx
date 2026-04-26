@@ -11,7 +11,7 @@ const { Title, Text, Paragraph } = Typography;
 
 const FEATURES = [
   { title: 'Regime Comparison', desc: 'Side-by-side Old vs New regime with FY 2025-26 slabs. Shows exactly which saves more.', icon: <SwapOutlined />, color: '#5B92E5' },
-  { title: 'Tax Leakage Detection', desc: 'Finds money you\'re losing without knowing — missed deductions, unclaimed exemptions.', icon: <SearchOutlined />, color: '#F59E0B' },
+  { title: 'Missed Deductions Finder', desc: 'Find deductions you have missed and unclaimed exemptions you are legally entitled to.', icon: <SearchOutlined />, color: '#F59E0B' },
   { title: 'Tax Health Score', desc: 'A score out of 100 showing how optimized your tax planning is.', icon: <LineChartOutlined />, color: '#10B981' },
   { title: 'AI Tax Assistant', desc: 'Ask anything — the AI knows your income, deductions and profile. Like a personal CA.', icon: <ThunderboltFilled />, color: '#7C3AED' },
   { title: 'Legal Loopholes', desc: '15 legally bulletproof strategies — HUF, RNOR, LTCG harvesting, corporate car lease and more.', icon: <BulbOutlined />, color: '#D97706' },

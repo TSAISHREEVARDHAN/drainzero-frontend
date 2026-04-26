@@ -329,7 +329,7 @@ const ProfilePage = () => {
       children: (
         <Card style={cardStyle}>
           <Alert
-            message="These values are used across all features — Regime Comparison, Tax Leakage, Health Score, Recommendations. Update them here anytime."
+            message="These values are used across all features — Regime Comparison, Missed Deductions Finder, Health Score, Recommendations. Update them here anytime."
             type="info" showIcon style={{ marginBottom: 24, borderRadius: 12 }}
           />
           {incomeError && <Alert message={incomeError} type="error" showIcon style={{ marginBottom: 24, borderRadius: 12 }} />}

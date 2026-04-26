@@ -130,7 +130,13 @@ const AnalysisForm = ({
             deduction80D    : savedProfile?.section_80d       || 0,
             deductionNPS    : savedProfile?.nps_personal      || 0,
             hraDeduction    : savedProfile?.hra_deduction     || savedProfile?.hra_received || 0,
-            professionalTax : savedProfile?.professional_tax  || 2500,
+            // Professional tax: only salaried/government employees pay this (₹2500/yr max)
+            // Self-employed, freelancers, students, retired → 0
+            professionalTax : (() => {
+                const empType = savedProfile?.employment_type || '';
+                const isSalaried = ['Salaried', 'Government'].includes(empType);
+                return isSalaried ? (savedProfile?.professional_tax || 2500) : 0;
+            })(),
             regimePreference: savedProfile?.preferred_regime  || 'Auto Suggest',
             ...values,
             purchaseAmount: values.purchaseAmount || ((values.purchasePrice || 0) * (values.quantity || 0)) || values.investmentAmount || values.totalBuyValue || 0,
@@ -165,7 +171,11 @@ const AnalysisForm = ({
                 message.success({ content: 'Analysis complete!', key: 'analysis', duration: 2 });
             } catch (err) {
                 message.destroy('analysis');
-                console.warn('Backend analyse failed, using local computation:', err.message);
+                if (err.message?.includes('NO_INCOME_DATA') || err.message?.includes('salary is zero')) {
+                    message.error('Please add your income details in Profile before running analysis.');
+                } else {
+                    console.warn('Backend analyse failed, using local computation:', err.message);
+                }
             } finally {
                 setSubmitting(false);
                 message.destroy('analysis');

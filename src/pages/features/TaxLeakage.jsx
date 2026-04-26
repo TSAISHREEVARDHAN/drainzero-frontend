@@ -81,7 +81,7 @@ const TaxLeakage = () => {
               style={{ marginBottom: 24, borderRadius: 12, fontWeight: 600, color: '#5B92E5' }}>
               Back to Dashboard
             </Button>
-            <Title level={2} style={{ color: '#08457E', fontWeight: 800, marginBottom: 8 }}>Tax Leakage Detection</Title>
+            <Title level={2} style={{ color: '#08457E', fontWeight: 800, marginBottom: 8 }}>Missed Deductions Finder</Title>
             <Paragraph style={{ color: '#6B7280', fontSize: 16, marginBottom: 32 }}>
               Money you are legally entitled to save but currently losing.
             </Paragraph>

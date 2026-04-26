@@ -174,10 +174,13 @@ const RegimeComparison = () => {
     // Rebate 87A — Old Regime: full rebate if taxable ≤ ₹5L
     if (taxableIncomeOld <= 500000) taxOld = 0;
 
-    // Use backend values if available, else use local calculation
-    const finalTaxOld = hasBackend ? bFinalOld : (taxOld + capitalGainsTax);
-    const finalTaxNew = hasBackend ? bFinalNew : (taxNew + capitalGainsTax);
-    const bestRegime  = hasBackend ? bBest : (finalTaxOld < finalTaxNew ? 'Old Regime' : 'New Regime');
+    // Apply 4% cess to local calculation too (backend already includes it)
+    const localCessOld = Math.round(taxOld * 0.04);
+    const localCessNew = Math.round(taxNew * 0.04);
+    // Use backend values if available, else use local calculation (with cess)
+    const finalTaxOld = hasBackend ? bFinalOld : Math.round(taxOld + localCessOld + capitalGainsTax);
+    const finalTaxNew = hasBackend ? bFinalNew : Math.round(taxNew + localCessNew + capitalGainsTax);
+    const bestRegime  = hasBackend ? bBest : (finalTaxNew <= finalTaxOld ? 'New Regime' : 'Old Regime');
     const savings     = hasBackend ? bSavings : Math.abs(finalTaxOld - finalTaxNew);
 
     const columns = [
@@ -193,8 +196,11 @@ const RegimeComparison = () => {
         { key: 4, label: `Asset Specific Benefits (${category})`, old: vehicleBenefitOld + propertyBenefitOld, new: vehicleBenefitNew },
         { key: 5, label: 'Taxable Slab Income', old: taxableIncomeOld, new: taxableIncomeNew },
         { key: 6, label: 'Slab Tax (Before Rebate & Cess)', old: hasBackend ? bSlabOld : taxOld, new: hasBackend ? bSlabNew : taxNew },
-        { key: 7, label: 'Section 87A Rebate (Budget 2025)', old: hasBackend ? -bRebateOld : (taxableIncomeOld <= 500000 ? -Math.min(taxOld, 12500) : 0), new: hasBackend ? -bRebateNew : (taxableIncomeNew <= 1200000 ? -(hasBackend ? bSlabNew : taxNew) : 0) },
-        { key: 8, label: '4% Health & Education Cess', old: hasBackend ? bCessOld : 0, new: hasBackend ? bCessNew : 0 },
+        { key: 7, label: 'Section 87A Rebate (Budget 2025)',
+            old: hasBackend ? -bRebateOld : (taxableIncomeOld <= 500000 ? -Math.min(calcTaxOld(taxableIncomeOld), 12500) : 0),
+            // local: rebate = full slab tax (since taxNew is already 0 after rebate, we show pre-rebate as the rebate amount)
+            new: hasBackend ? -bRebateNew : (taxableIncomeNew <= 1200000 ? -calcTaxNew(taxableIncomeNew) : 0) },
+        { key: 8, label: '4% Health & Education Cess', old: hasBackend ? bCessOld : localCessOld, new: hasBackend ? bCessNew : localCessNew },
         { key: 9, label: 'Capital Gains / VDA Tax', old: capitalGainsTax, new: capitalGainsTax },
         { key: 10, label: 'Total Tax Payable (Final)', old: finalTaxOld, new: finalTaxNew },
     ];

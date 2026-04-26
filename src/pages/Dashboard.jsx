@@ -39,7 +39,7 @@ const Dashboard = () => {
 
   const featureCards = [
     { id: 'regime',        title: 'Regime Comparison',           description: 'Compare Old vs New tax regime and find the best option.',        icon: <SwapOutlined />,         iconColor: '#5B92E5', path: '/feature/regime-comparison' },
-    { id: 'leakage',       title: 'Tax Leakage Detection',       description: 'Identify missed deductions and hidden tax-saving opportunities.', icon: <SearchOutlined />,       iconColor: '#F59E0B', path: '/feature/tax-leakage' },
+    { id: 'leakage',       title: 'Missed Deductions Finder',    description: 'Find deductions you missed and opportunities to reduce your tax.', icon: <SearchOutlined />,       iconColor: '#F59E0B', path: '/feature/tax-leakage' },
     { id: 'health',        title: 'Tax Health Score',            description: 'Your overall tax optimization score across all parameters.',      icon: <LineChartOutlined />,    iconColor: '#10B981', path: '/feature/tax-health' },
     { id: 'recommendations', title: 'Actionable Recommendations', description: 'Clear personalised steps to legally reduce your tax.',           icon: <CheckCircleOutlined />,  iconColor: '#3B82F6', path: '/feature/recommendations' },
     { id: 'salary',        title: 'Salary Structure Analysis',   description: 'Optimise your salary components for better tax efficiency.',      icon: <WalletOutlined />,       iconColor: '#8B5CF6', path: '/feature/salary-analysis' },

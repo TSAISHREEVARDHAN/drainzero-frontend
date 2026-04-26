@@ -36,10 +36,11 @@ const useProfileData = () => {
       if (!user) { setDataLoading(false); return; }
 
       try {
-        const [profile, taxResult] = await Promise.all([
-          getExistingProfile(user.id),
-          getLastTaxResult(user.id),
-        ]);
+        // Sequential (not concurrent) to avoid Supabase auth lock contention.
+        // Promise.all fires both simultaneously and competes with AuthContext
+        // for the auth token lock → "lock was released because another request stole it"
+        const profile   = await getExistingProfile(user.id);
+        const taxResult = await getLastTaxResult(user.id);
 
         if (profile) {
           const mapped = mapProfileToForm(profile);

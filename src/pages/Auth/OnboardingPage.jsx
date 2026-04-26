@@ -443,7 +443,7 @@ const OnboardingPage = () => {
       <Divider />
       <div style={{ background: '#F0FDF4', borderRadius: 12, padding: '12px 16px' }}>
         <Text style={{ color: '#059669', fontSize: 13 }}>
-          All values are saved to your profile and auto-loaded in every feature — Tax Leakage, Health Score, Regime Comparison, and more.
+          All values are saved to your profile and auto-loaded in every feature — Missed Deductions Finder, Health Score, Regime Comparison, and more.
         </Text>
       </div>
     </Space>

@@ -43,21 +43,21 @@ const DeadlineReminders = () => {
   const estimatedTax = (() => {
     // FY 2025-26 (Budget 2025) new regime slabs; standard deduction ₹75,000
     const taxable = Math.max(0, income - 75000);
-    // 87A full rebate if taxable ≤ ₹12L
+    // 87A rebate: taxable ≤ ₹12L → zero tax
     if (taxable <= 1200000) return 0;
-    if (taxable <= 400000)  return 0;
-    if (taxable <= 800000)  return (taxable - 400000) * 0.05;
-    if (taxable <= 1200000) return 20000 + (taxable - 800000) * 0.10;
-    if (taxable <= 1600000) return 60000 + (taxable - 1200000) * 0.15;
+    // Slabs above ₹12L (rebate does not apply)
+    if (taxable <= 1600000) return 60000  + (taxable - 1200000) * 0.15;
     if (taxable <= 2000000) return 120000 + (taxable - 1600000) * 0.20;
     if (taxable <= 2400000) return 200000 + (taxable - 2000000) * 0.25;
-    return 300000 + (taxable - 2400000) * 0.30;
+    return                          300000 + (taxable - 2400000) * 0.30;
   })();
+  const taxWithCess = Math.round(estimatedTax * 1.04);
 
-  const q1 = Math.round(estimatedTax * 0.15);
-  const q2 = Math.round(estimatedTax * 0.45);
-  const q3 = Math.round(estimatedTax * 0.75);
-  const q4 = Math.round(estimatedTax);
+  // Advance tax: each quarter shows the INSTALLMENT amount (not cumulative)
+  const q1 = Math.round(taxWithCess * 0.15);                          // Jun 15: 15%
+  const q2 = Math.round(taxWithCess * 0.45) - q1;                    // Sep 15: 30% more
+  const q3 = Math.round(taxWithCess * 0.75) - q1 - q2;               // Dec 15: 30% more
+  const q4 = taxWithCess - q1 - q2 - q3;                              // Mar 15: 25% more
 
   return (
     <ConfigProvider theme={{ token: { colorPrimary: '#5B92E5', borderRadius: 16, fontFamily: "'Outfit', sans-serif" } }}>
@@ -102,7 +102,7 @@ const DeadlineReminders = () => {
               </Row>
               <div style={{ marginTop: 16, padding: '12px 16px', background: 'rgba(255,255,255,0.06)', borderRadius: 12 }}>
                 <Text style={{ color: '#CCF1FF', fontSize: 13 }}>
-                  Based on estimated income ₹{income.toLocaleString()} under New Regime. Adjust if actual tax varies.
+                  Estimated annual tax ₹{taxWithCess.toLocaleString()} (incl. cess). Each row shows the instalment due that quarter.
                 </Text>
               </div>
             </Card>
