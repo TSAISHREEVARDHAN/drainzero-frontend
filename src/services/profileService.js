@@ -104,6 +104,31 @@ export const getLastTaxResult = async (userId) => {
     .select('*')
     .eq('user_id', userId)
     .maybeSingle();
-  if (error) return null;
-  return data;
+  if (error || !data) return null;
+
+  // Restore full backendResult shape so all feature pages work after
+  // session refresh / re-login without needing to re-run analysis
+  return {
+    success           : true,
+    recommendedRegime : data.recommended_regime,
+    saving            : data.saving   ?? Math.abs((data.old_tax||0) - (data.new_tax||0)),
+    healthScore       : data.health_score,
+    totalLeakage      : data.total_leakage,
+    leakageGaps       : data.leakage_gaps   || [],
+    advanceTax        : data.advance_tax    || {},
+    capitalGains      : data.capital_gains  || {},
+    category          : data.category       || '',
+    subcategory       : data.subcategory    || '',
+    validation        : data.validation     || {},
+    oldRegime: {
+      totalTax      : data.old_tax,
+      taxableIncome : data.old_taxable || 0,
+      regime        : 'old',
+    },
+    newRegime: {
+      totalTax      : data.new_tax,
+      taxableIncome : data.new_taxable || 0,
+      regime        : 'new',
+    },
+  };
 };
