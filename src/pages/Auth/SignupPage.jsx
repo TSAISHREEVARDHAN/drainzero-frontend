@@ -9,7 +9,7 @@ const { Title, Text } = Typography;
 const FEATURES = [
   'Old vs New regime comparison',
   'AI Tax Assistant',
-  '14 legal tax loopholes',
+  '15 legal tax loopholes',
   'Form 16 upload & auto-analysis',
   'Tax leakage detection',
 ];

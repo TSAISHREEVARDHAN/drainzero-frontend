@@ -233,13 +233,31 @@ const DocumentsPage = () => {
                         <Space style={{ marginBottom: 12 }}>
                           <CheckCircleFilled style={{ color: '#059669', fontSize: 20 }} />
                           <Text strong style={{ color: '#059669' }}>
-                            {form16Result.profileUpdated ? 'Form 16 processed and profile updated.' : 'Form 16 processed successfully.'}
+                            {form16Result.profileUpdated ? 'Form 16 processed — income profile auto-updated.' : 'Form 16 processed successfully.'}
                           </Text>
                         </Space>
                         <SummaryRows
                           data={form16Result.extractedData}
                           preferredKeys={['employerName', 'grossSalary', 'basicSalary', 'hra', 'section80C', 'section80D', 'tdsByEmployer', 'regime']}
                         />
+                        {form16Result.profileUpdated && (
+                          <div style={{ marginTop: 16, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                            <Button
+                              type="primary"
+                              icon={<ArrowLeftOutlined style={{ transform: 'rotate(180deg)' }} />}
+                              onClick={() => navigate('/category-selection', { state: location.state })}
+                              style={{ borderRadius: 12, background: '#08457E', border: 'none', fontWeight: 600 }}
+                            >
+                              Run Analysis with Form 16 Data
+                            </Button>
+                            <Button
+                              onClick={() => { setForm16Result(null); setForm16Error(''); }}
+                              style={{ borderRadius: 12 }}
+                            >
+                              Upload Another
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <Upload

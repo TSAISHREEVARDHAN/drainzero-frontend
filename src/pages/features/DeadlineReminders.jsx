@@ -11,9 +11,9 @@ const today = new Date();
 
 const DEADLINES = [
   { date: '15 Jun 2025', label: 'Advance Tax — Q1 (15%)', amount: '15% of estimated tax', status: 'done', note: 'April 1 – June 15' },
-  { date: '15 Sep 2025', label: 'Advance Tax — Q2 (45%)', amount: '45% cumulative', status: 'done', note: 'By Sep 15 — pay 45% of total' },
-  { date: '15 Dec 2025', label: 'Advance Tax — Q3 (75%)', amount: '75% cumulative', status: 'done', note: 'By Dec 15 — pay 75% of total' },
-  { date: '15 Mar 2026', label: 'Advance Tax — Q4 (100%)', amount: '100% cumulative', status: new Date('2026-03-15') > today ? 'upcoming' : 'done', note: 'Final installment' },
+  { date: '15 Sep 2025', label: 'Advance Tax — Q2 (30% instalment)', amount: '30% of estimated tax', status: 'done', note: 'Pay 30% more (total 45% by Sep 15)' },
+  { date: '15 Dec 2025', label: 'Advance Tax — Q3 (30% instalment)', amount: '30% of estimated tax', status: 'done', note: 'Pay 30% more (total 75% by Dec 15)' },
+  { date: '15 Mar 2026', label: 'Advance Tax — Q4 (25% instalment)', amount: '25% of estimated tax — final payment', status: new Date('2026-03-15') > today ? 'upcoming' : 'done', note: 'Final installment' },
   { date: '31 Mar 2026', label: 'Last Date to Make Tax-Saving Investments', amount: '80C, 80D, NPS', status: new Date('2026-03-31') > today ? 'urgent' : 'done', note: 'Last chance for FY 2025-26 investments' },
   { date: '15 Jun 2026', label: 'Advance Tax — Q1 FY26-27', amount: '15% of estimated tax', status: 'upcoming', note: 'Start planning now' },
   { date: '31 Jul 2026', label: 'ITR Filing Deadline (Non-Audit)', amount: 'File your ITR', status: 'upcoming', note: 'For salaried + business (non-audit)' },
@@ -53,7 +53,7 @@ const DeadlineReminders = () => {
   })();
   const taxWithCess = Math.round(estimatedTax * 1.04);
 
-  // Advance tax: each quarter shows the INSTALLMENT amount (not cumulative)
+  // Advance tax: each quarter shows the instalment amount due that quarter
   const q1 = Math.round(taxWithCess * 0.15);                          // Jun 15: 15%
   const q2 = Math.round(taxWithCess * 0.45) - q1;                    // Sep 15: 30% more
   const q3 = Math.round(taxWithCess * 0.75) - q1 - q2;               // Dec 15: 30% more
@@ -87,15 +87,15 @@ const DeadlineReminders = () => {
               <Row gutter={[16, 16]}>
                 {[
                   { q: 'Q1', due: 'Jun 15', pct: '15%', amount: q1 },
-                  { q: 'Q2', due: 'Sep 15', pct: '45%', amount: q2 },
-                  { q: 'Q3', due: 'Dec 15', pct: '75%', amount: q3 },
-                  { q: 'Q4', due: 'Mar 15', pct: '100%', amount: q4 },
+                  { q: 'Q2', due: 'Sep 15', pct: '30% instalment', amount: q2 },
+                  { q: 'Q3', due: 'Dec 15', pct: '30% instalment', amount: q3 },
+                  { q: 'Q4', due: 'Mar 15', pct: '25% instalment', amount: q4 },
                 ].map((item, i) => (
                   <Col xs={12} md={6} key={i}>
                     <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 16, padding: 16, textAlign: 'center' }}>
                       <div style={{ fontSize: 11, color: '#CCF1FF', letterSpacing: 1, marginBottom: 8 }}>{item.q} · Due {item.due}</div>
                       <div style={{ fontSize: 20, fontWeight: 800, color: '#FFFFFF' }}>₹{item.amount.toLocaleString()}</div>
-                      <div style={{ fontSize: 11, color: '#CCF1FF', marginTop: 4 }}>{item.pct} cumulative</div>
+                      <div style={{ fontSize: 11, color: '#CCF1FF', marginTop: 4 }}>{item.pct}</div>
                     </div>
                   </Col>
                 ))}

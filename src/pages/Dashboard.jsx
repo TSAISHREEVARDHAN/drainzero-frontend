@@ -13,6 +13,8 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
+import { getLastTaxResult } from '../services/profileService';
+import { useState, useEffect } from 'react';
 
 const { Content } = Layout;
 const { Title, Text, Paragraph } = Typography;
@@ -23,9 +25,19 @@ const Dashboard = () => {
   const { logout, user } = useAuth();
 
   const state = location.state || {};
-  const { category, subcategory, ownership, formData, backendResult } = state;
+  const { category, subcategory, ownership, formData } = state;
 
-  // ── Real results from backend — no mock values ──
+  // ── Load result: prefer navigation state, fallback to DB ──────────────────
+  const [dbResult, setDbResult] = useState(null);
+  const [dbLoading, setDbLoading] = useState(!state.backendResult);
+
+  useEffect(() => {
+    if (state.backendResult) { setDbLoading(false); return; }
+    if (!user) { setDbLoading(false); return; }
+    getLastTaxResult(user.id).then(r => { setDbResult(r); setDbLoading(false); }).catch(() => setDbLoading(false));
+  }, [user]);
+
+  const backendResult    = state.backendResult || dbResult;
   const hasResult        = backendResult?.success && backendResult?.oldRegime && backendResult?.newRegime;
   const oldTax           = hasResult ? (backendResult.oldRegime?.totalTax  || 0) : null;
   const newTax           = hasResult ? (backendResult.newRegime?.totalTax  || 0) : null;

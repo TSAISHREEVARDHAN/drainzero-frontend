@@ -52,16 +52,10 @@ const useProfileData = () => {
         }
 
         if (taxResult) {
-          setBackendResult({
-            success          : true,
-            oldRegime        : { totalTax: taxResult.old_tax   || 0 },
-            newRegime        : { totalTax: taxResult.new_tax   || 0 },
-            recommendedRegime: taxResult.recommended_regime    || 'new',
-            totalLeakage     : taxResult.total_leakage         || 0,
-            healthScore      : taxResult.health_score          || null,
-            leakageGaps      : taxResult.leakage_gaps          || [],
-            saving           : Math.abs((taxResult.old_tax || 0) - (taxResult.new_tax || 0)),
-          });
+          // getLastTaxResult already returns the full backendResult shape —
+          // just pass it through directly. Don't reconstruct a partial shape
+          // or feature pages will get undefined for saving, advanceTax, etc.
+          setBackendResult(taxResult);
         }
       } catch (e) {
         console.warn('useProfileData load error:', e.message);

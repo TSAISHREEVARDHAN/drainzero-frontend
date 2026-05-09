@@ -53,7 +53,8 @@ const SalaryAnalysis = () => {
 
   const taxRate      = salary > 1500000 ? 0.30 : salary > 1000000 ? 0.20 : 0.10;
   const taxSavingAmt = Math.round((optMedical + optLeave + optVehicle) * taxRate);
-  const currentTax   = backendResult?.newRegime?.totalTax || Math.round(salary * 0.12);
+  // Use backend result if available; otherwise 0 (never fake 12% estimate)
+  const currentTax   = backendResult?.newRegime?.totalTax ?? 0;
   const optimizedTax = Math.max(0, currentTax - taxSavingAmt);
 
   const columns = [

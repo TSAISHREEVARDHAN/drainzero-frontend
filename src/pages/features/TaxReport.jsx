@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Button, ConfigProvider, message } from 'antd';
 import { PrinterOutlined, ArrowLeftOutlined, DownloadOutlined } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext';
+import useProfileData from '../../hooks/useProfileData';
 import Navbar from '../../components/Navbar';
 
 const TaxReport = () => {
@@ -11,7 +12,12 @@ const TaxReport = () => {
   const { userProfile } = useAuth();
   const reportRef = useRef();
 
-  const { formData = {}, backendResult = {}, category = '', subcategory = '' } = location.state || {};
+  // Prefer navigation state; fallback to DB via useProfileData (handles refresh)
+  const profileData = useProfileData();
+  const formData     = (location.state?.formData)     || profileData.formData     || {};
+  const backendResult= (location.state?.backendResult) || profileData.backendResult || {};
+  const category     = location.state?.category     || profileData.category     || '';
+  const subcategory  = location.state?.subcategory  || profileData.subcategory  || '';
 
   const salary      = formData?.annualSalary || 0;
   const bonus       = formData?.bonus        || 0;
