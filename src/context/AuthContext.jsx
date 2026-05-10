@@ -240,8 +240,10 @@ export const AuthProvider = ({ children }) => {
           if (session?.user) {
             setUser(session.user);
             await processUser(session.user);
+            done(); // always call done — callback page will react to user state
+          } else {
+            done();
           }
-          if (!isCallbackPage()) done();
           return;
         }
 
