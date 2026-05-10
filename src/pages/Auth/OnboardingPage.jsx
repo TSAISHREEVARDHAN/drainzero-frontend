@@ -135,32 +135,6 @@ const OnboardingPage = () => {
         updated_at          : new Date().toISOString(),
       };
 
-      // Try upsert first — handles both new and existing rows reliably
-      const { error: upsertErr } = await withTimeout(
-        supabase
-          .from('users')
-          .upsert(
-            { id: user.id, email: user.email, ...profilePayload },
-            { onConflict: 'id' }  // conflict on id, NOT email
-          )
-      );
-
-      if (upsertErr) {
-        if (upsertErr.code === '23505') {
-          // email unique constraint hit — fall back to plain update (row definitely exists)
-          const { error: updateErr } = await supabase
-            .from('users')
-            .update(profilePayload)
-            .eq('id', user.id);
-          if (updateErr) {
-            console.warn('[Onboarding] Profile update fallback failed:', updateErr.message);
-          }
-        } else {
-          console.warn('[Onboarding] Profile upsert failed:', upsertErr.message);
-        }
-      }
-
-      // ── 2. Save income profile — also synchronous but non-fatal ──────────
       const baseSalary = parseFloat(values.annualSalary) || 0;
       const bonus      = isSalaried ? (parseFloat(values.bonus) || 0) : 0;
 
@@ -176,14 +150,24 @@ const OnboardingPage = () => {
         is_metro        : isMetro,
       });
 
-      try {
-        await withTimeout(
-          supabase
-            .from('income_profile')
-            .upsert({ user_id: user.id, ...incomePayload }, { onConflict: 'user_id' })
-        );
-      } catch (incErr) {
-        console.warn('[Onboarding] Income save failed:', incErr?.message);
+      // Save via backend (service role — bypasses RLS, always works)
+      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+      const saveRes = await withTimeout(
+        fetch(`${BACKEND_URL}/api/profile/save`, {
+          method : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body   : JSON.stringify({
+            userId        : user.id,
+            email         : user.email,
+            profilePayload,
+            incomePayload,
+          }),
+        }).then(r => r.json())
+      );
+
+      if (saveRes?.error) {
+        console.warn('[Onboarding] Backend save error:', saveRes.error);
+        throw new Error('Failed to save profile: ' + saveRes.error);
       }
 
       // ── 3. Update context AFTER DB save so refreshProfile won't overwrite ─
