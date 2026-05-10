@@ -26,23 +26,6 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     autoRefreshToken  : true,
     persistSession    : true,
     detectSessionInUrl: true,
-    // Use localStorage with no lock contention on reads
-    storage           : window.localStorage,
-    storageKey        : `sb-${new URL(SUPABASE_URL).hostname.split('.')[0]}-auth-token`,
-    // Debounce token refresh — prevents simultaneous refresh attempts
-    // when multiple components mount at the same time
-    debug             : false,
-  },
-  global: {
-    // Add a small jitter to stagger concurrent requests on page load
-    headers: { 'x-drainzero-client': '1' },
-  },
-  db: {
-    schema: 'public',
-  },
-  realtime: {
-    // Disable realtime subscriptions (not used) to reduce connection overhead
-    params: { eventsPerSecond: 10 },
   },
 });
 
