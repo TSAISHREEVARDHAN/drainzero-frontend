@@ -80,6 +80,15 @@ const OnboardingPage = () => {
     }
   };
 
+  // Timeout wrapper — prevents Supabase calls from hanging forever
+  const withTimeout = (promise, ms = 12000) =>
+    Promise.race([
+      promise,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Request timed out. Check your internet connection and try again.')), ms)
+      ),
+    ]);
+
   const handleSubmit = async () => {
     setLoading(true);
     setError('');
@@ -127,12 +136,14 @@ const OnboardingPage = () => {
       };
 
       // Try upsert first — handles both new and existing rows reliably
-      const { error: upsertErr } = await supabase
-        .from('users')
-        .upsert(
-          { id: user.id, email: user.email, ...profilePayload },
-          { onConflict: 'id' }  // conflict on id, NOT email
-        );
+      const { error: upsertErr } = await withTimeout(
+        supabase
+          .from('users')
+          .upsert(
+            { id: user.id, email: user.email, ...profilePayload },
+            { onConflict: 'id' }  // conflict on id, NOT email
+          )
+      );
 
       if (upsertErr) {
         if (upsertErr.code === '23505') {
@@ -166,9 +177,11 @@ const OnboardingPage = () => {
       });
 
       try {
-        await supabase
-          .from('income_profile')
-          .upsert({ user_id: user.id, ...incomePayload }, { onConflict: 'user_id' });
+        await withTimeout(
+          supabase
+            .from('income_profile')
+            .upsert({ user_id: user.id, ...incomePayload }, { onConflict: 'user_id' })
+        );
       } catch (incErr) {
         console.warn('[Onboarding] Income save failed:', incErr?.message);
       }

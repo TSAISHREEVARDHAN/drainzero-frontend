@@ -183,8 +183,15 @@ export const AuthProvider = ({ children }) => {
       return done;
     } catch (err) {
       console.error('[Auth] checkOnboarding error:', err.message);
-      setOnboardingDone(true); // let user through on error
-      return true;
+      // On network error, check localStorage for a cached onboarding flag
+      // so returning users aren't looped back to onboarding
+      const cached = localStorage.getItem('dz_onboarding_done');
+      if (cached === 'true') {
+        setOnboardingDone(true);
+        return true;
+      }
+      setOnboardingDone(false);
+      return false;
     }
   }, []);
 
@@ -268,6 +275,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     processingUser = false;
+    localStorage.removeItem('dz_onboarding_done');
     try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
     clearAllState();
   };
@@ -277,7 +285,10 @@ export const AuthProvider = ({ children }) => {
     return await checkOnboarding(user.id);
   }, [user, checkOnboarding]);
 
-  const markOnboardingDone  = useCallback(() => setOnboardingDone(true), []);
+  const markOnboardingDone  = useCallback(() => {
+    setOnboardingDone(true);
+    localStorage.setItem('dz_onboarding_done', 'true');
+  }, []);
   const markIncomeDataSaved = useCallback(() => setHasIncomeData(true),  []);
 
   return (
