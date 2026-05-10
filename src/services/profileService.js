@@ -65,13 +65,17 @@ export const mapProfileToForm = (profile) => {
   };
 };
 
-// ── Save income profile to Supabase ──
+// ── Save income profile via backend (service role — bypasses RLS) ──
 export const saveIncomeProfile = async (userId, profileData) => {
   if (!userId) throw new Error('userId required');
-  const { error } = await supabase
-    .from('income_profile')
-    .upsert({ user_id: userId, ...profileData }, { onConflict: 'user_id' });
-  if (error) throw new Error(`Failed to save income profile: ${error.message}`);
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+  const res = await fetch(`${BACKEND_URL}/api/profile/save-income`, {
+    method : 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body   : JSON.stringify({ userId, incomePayload: profileData }),
+  });
+  const data = await res.json();
+  if (data?.error) throw new Error(`Failed to save income profile: ${data.error}`);
 };
 
 // ── Full flow: save → backend analyse (uses real DB data) ──

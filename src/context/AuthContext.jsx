@@ -34,75 +34,23 @@ const getGoogleName = (authUser) => {
     .join(' ');
 };
 
-// ── Ensure public.users row exists — serialised, never concurrent ─────────────
+// ── Ensure public.users row exists — via backend (service role, no RLS issues) ─
 export const ensurePublicUserRow = async (authUser) => {
   if (!authUser?.id) return null;
-
   const googleName = getGoogleName(authUser);
-
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   try {
-    const { data: existing } = await supabase
-      .from('users')
-      .select('id, name, full_name, onboarding_done, onboarding_complete')
-      .eq('id', authUser.id)
-      .maybeSingle();
-
-    if (existing) {
-      // Row exists — fix name if it looks like an email fragment or is blank
-      const needsNameFix =
-        !existing.name ||
-        existing.name.includes('@') ||
-        existing.name === authUser.email?.split('@')[0];
-
-      if (needsNameFix && googleName) {
-        // Fire-and-forget — don't await so we don't delay auth flow
-        supabase
-          .from('users')
-          .update({ name: googleName, full_name: googleName, updated_at: new Date().toISOString() })
-          .eq('id', authUser.id)
-          .then(() => {})
-          .catch(() => {});
-      }
-      return {
-        ...existing,
-        name      : needsNameFix ? googleName : existing.name,
-        full_name : needsNameFix ? googleName : existing.full_name,
-      };
-    }
-  } catch {}
-
-  // Row missing — insert
-  try {
-    const { data: inserted } = await supabase
-      .from('users')
-      .insert({
-        id                  : authUser.id,
-        email               : authUser.email,
-        name                : googleName,
-        full_name           : googleName,
-        onboarding_done     : false,
-        onboarding_complete : false,
-        updated_at          : new Date().toISOString(),
-      })
-      .select('id, name, full_name, onboarding_done, onboarding_complete')
-      .maybeSingle();
-
-    if (inserted) return inserted;
+    const res = await fetch(`${BACKEND_URL}/api/profile/ensure-user`, {
+      method : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body   : JSON.stringify({ userId: authUser.id, email: authUser.email, name: googleName }),
+    });
+    const data = await res.json();
+    return data?.user || null;
   } catch (e) {
-    if (e?.code !== '23505') console.warn('[Auth] ensurePublicUserRow:', e?.message);
+    console.warn('[Auth] ensurePublicUserRow backend error:', e.message);
+    return null;
   }
-
-  // Conflict — read again
-  try {
-    const { data: retry } = await supabase
-      .from('users')
-      .select('id, name, full_name, onboarding_done, onboarding_complete')
-      .eq('id', authUser.id)
-      .maybeSingle();
-    return retry;
-  } catch {}
-
-  return null;
 };
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
@@ -126,34 +74,15 @@ export const AuthProvider = ({ children }) => {
   const checkOnboarding = useCallback(async (uid, rowFromEnsure) => {
     if (!uid) return false;
     try {
-      // If ensurePublicUserRow already returned the row, skip re-fetching users table
-      let userData = rowFromEnsure || null;
+      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+
+      // Use rowFromEnsure if it has full data, otherwise load from backend
+      let userData = (rowFromEnsure && rowFromEnsure.age) ? rowFromEnsure : null;
 
       if (!userData) {
-        const { data, error } = await supabase
-          .from('users')
-          .select(
-            'id, name, full_name, email, age, gender, marital_status, ' +
-            'employment_type, sector, profession, state, city, is_metro, ' +
-            'onboarding_done, onboarding_complete'
-          )
-          .eq('id', uid)
-          .maybeSingle();
-
-        if (error) throw error;
-        userData = data;
-      } else if (!userData.age) {
-        // rowFromEnsure only has limited fields — fetch full profile
-        const { data } = await supabase
-          .from('users')
-          .select(
-            'id, name, full_name, email, age, gender, marital_status, ' +
-            'employment_type, sector, profession, state, city, is_metro, ' +
-            'onboarding_done, onboarding_complete'
-          )
-          .eq('id', uid)
-          .maybeSingle();
-        userData = data || userData;
+        const res  = await fetch(`${BACKEND_URL}/api/profile/load/${uid}`);
+        const data = await res.json();
+        userData   = data?.user || rowFromEnsure || null;
       }
 
       if (!userData) {
@@ -167,24 +96,19 @@ export const AuthProvider = ({ children }) => {
       setOnboardingDone(done);
       setUserProfile(userData);
 
-      // Income check — separate query, non-fatal
+      // Check income from backend load
       try {
-        const { data: income } = await supabase
-          .from('income_profile')
-          .select('user_id, gross_salary')
-          .eq('user_id', uid)
-          .maybeSingle();
+        const res    = await fetch(`${BACKEND_URL}/api/profile/load/${uid}`);
+        const data   = await res.json();
+        const income = data?.income;
         setHasIncomeData(!!(income && Number(income.gross_salary) > 0));
       } catch {
-        // If income query times out, assume income exists for onboarded users
         setHasIncomeData(done);
       }
 
       return done;
     } catch (err) {
       console.error('[Auth] checkOnboarding error:', err.message);
-      // On network error, check localStorage for a cached onboarding flag
-      // so returning users aren't looped back to onboarding
       const cached = localStorage.getItem('dz_onboarding_done');
       if (cached === 'true') {
         setOnboardingDone(true);

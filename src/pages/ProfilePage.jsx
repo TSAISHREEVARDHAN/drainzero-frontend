@@ -73,12 +73,13 @@ const ProfilePage = () => {
 
       let profile = userProfile;
 
-      // Only go direct to DB if context has no profile yet
+      // Load from backend if context has no profile yet
       if (!profile && user) {
         try {
-          const { data } = await supabase
-            .from('users').select('*').eq('id', user.id).maybeSingle();
-          profile = data;
+          const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+          const res  = await fetch(`${BACKEND_URL}/api/profile/load/${user.id}`);
+          const data = await res.json();
+          profile = data?.user || null;
         } catch (e) {
           console.warn('[ProfilePage] profile fetch failed:', e.message);
         }
@@ -106,11 +107,13 @@ const ProfilePage = () => {
         personalForm.setFieldsValue({ name: googleName });
       }
 
-      // Income profile — separate table, no auth token competition
+      // Income profile — load from backend
       if (user) {
         try {
-          const { data: inc } = await supabase
-            .from('income_profile').select('*').eq('user_id', user.id).maybeSingle();
+          const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+          const res  = await fetch(`${BACKEND_URL}/api/profile/load/${user.id}`);
+          const data = await res.json();
+          const inc  = data?.income || null;
           if (inc) {
             incomeForm.setFieldsValue({
               annualSalary    : inc.gross_salary      || 0,
@@ -162,26 +165,15 @@ const ProfilePage = () => {
         updated_at         : new Date().toISOString(),
       };
 
-      // Use upsert on id (not email) — handles both new and existing rows.
-      // Plain .update() silently does nothing if the row doesn't exist (0 rows, no error),
-      // which means returning users could find their profile data missing.
-      const { error: upsertErr } = await supabase
-        .from('users')
-        .upsert(
-          { id: user.id, email: user.email, ...profileData },
-          { onConflict: 'id' }
-        );
+      // Save via backend (service role — bypasses RLS)
+      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+      const saveRes = await fetch(`${BACKEND_URL}/api/profile/save`, {
+        method : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify({ userId: user.id, email: user.email, profilePayload: profileData }),
+      }).then(r => r.json());
 
-      if (upsertErr) {
-        if (upsertErr.code === '23505') {
-          // email unique constraint exists — fall back to plain update
-          const { error: updateErr } = await supabase
-            .from('users').update(profileData).eq('id', user.id);
-          if (updateErr) throw new Error(updateErr.message);
-        } else {
-          throw new Error(upsertErr.message);
-        }
-      }
+      if (saveRes?.error) throw new Error(saveRes.error);
 
       // Update localName immediately so header reflects new name without refresh
       const savedName = values.name?.trim();
