@@ -21,28 +21,25 @@ export const mapFormToProfile = (formData) => {
   const basic        = total * 0.40;
   const hra          = total * 0.20;
 
+  const rnd = v => Math.round(Number(v) || 0);
   return {
-    gross_salary            : total,
-    basic_da                : Number(formData.basicSalary  || basic),
-    hra_received            : Number(formData.hraReceived  || hra),
-    bonus                   : bonus,
-    other_income            : Number(formData.otherIncome  || 0),
-    fd_interest             : Number(formData.fdInterest   || 0),
-    // FIX: enforce statutory caps
-    section_80c             : Math.min(Number(formData.deduction80C        || 0), CAP_80C),
-    section_80d             : Math.min(Number(formData.deduction80D        || 0), CAP_80D),
-    section_80d_parents     : Math.min(Number(formData.deduction80DParents || 0), 50000),
-    nps_personal            : Math.min(Number(formData.deductionNPS        || 0), CAP_NPS),
-    employer_nps            : Number(formData.employerNPS            || 0),
-    education_loan_interest : Number(formData.educationLoanInterest  || 0),
-    donations_80g           : Number(formData.donations80G           || 0),
-    hra_deduction           : Number(formData.hraDeduction           || 0),
-    // rent_paid: use explicitly provided rentPaid field if available.
-    // Do NOT guess from hraDeduction — the HRA exemption formula needs actual rent,
-    // and hraDeduction is the RESULT (exemption), not the rent itself.
-    rent_paid               : Number(formData.rentPaid || formData.rent_paid || 0),
-    home_loan_interest      : Number(formData.loanInterestPaid || formData.homeLoanInterest || 0),
-    dividend_income         : Number(formData.dividendIncome   || 0),
+    gross_salary            : rnd(total),
+    basic_da                : rnd(formData.basicSalary  || basic),
+    hra_received            : rnd(formData.hraReceived  || hra),
+    bonus                   : rnd(bonus),
+    other_income            : rnd(formData.otherIncome  || 0),
+    fd_interest             : rnd(formData.fdInterest   || 0),
+    section_80c             : Math.min(rnd(formData.deduction80C        || 0), CAP_80C),
+    section_80d             : Math.min(rnd(formData.deduction80D        || 0), CAP_80D),
+    section_80d_parents     : Math.min(rnd(formData.deduction80DParents || 0), 50000),
+    nps_personal            : Math.min(rnd(formData.deductionNPS        || 0), CAP_NPS),
+    employer_nps            : rnd(formData.employerNPS            || 0),
+    education_loan_interest : rnd(formData.educationLoanInterest  || 0),
+    donations_80g           : rnd(formData.donations80G           || 0),
+    hra_deduction           : rnd(formData.hraDeduction           || 0),
+    rent_paid               : rnd(formData.rentPaid || formData.rent_paid || 0),
+    home_loan_interest      : rnd(formData.loanInterestPaid || formData.homeLoanInterest || 0),
+    dividend_income         : rnd(formData.dividendIncome   || 0),
     preferred_regime        : formData.regimePreference || 'Auto Suggest',
     is_metro                : !!formData.is_metro,
     updated_at              : new Date().toISOString(),
@@ -91,24 +88,31 @@ export const runFullAnalysis = async (userId, email, formData, category, subcate
 // ── Fetch existing income profile ──
 export const getExistingProfile = async (userId) => {
   if (!userId) return null;
-  const { data, error } = await supabase
-    .from('income_profile')
-    .select('*')
-    .eq('user_id', userId)
-    .maybeSingle();
-  if (error) { console.warn('getExistingProfile:', error.message); return null; }
-  return data;
+  try {
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+    const res  = await fetch(`${BACKEND_URL}/api/profile/load/${userId}`);
+    const data = await res.json();
+    return data?.income || null;
+  } catch (e) {
+    console.warn('getExistingProfile:', e.message);
+    return null;
+  }
 };
 
 // ── Fetch last tax result ──
 export const getLastTaxResult = async (userId) => {
   if (!userId) return null;
-  const { data, error } = await supabase
-    .from('tax_results')
-    .select('*')
-    .eq('user_id', userId)
-    .maybeSingle();
-  if (error || !data) return null;
+  let data = null;
+  try {
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+    const res = await fetch(`${BACKEND_URL}/api/profile/tax-result/${userId}`);
+    const json = await res.json();
+    data = json?.result || null;
+  } catch (e) {
+    console.warn('getLastTaxResult:', e.message);
+    return null;
+  }
+  if (!data) return null;
 
   // Restore full backendResult shape so all feature pages work after
   // session refresh / re-login without needing to re-run analysis

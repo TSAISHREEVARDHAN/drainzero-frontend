@@ -5,6 +5,7 @@ import {
 } from 'antd';
 import { ArrowLeftOutlined, SwapOutlined, BulbOutlined } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import Navbar from '../../components/Navbar';
 import TaxAssistantChatbot from '../../components/TaxAssistantChatbot';
 import TaxFieldLabel from '../../components/TaxFieldLabel';
@@ -34,14 +35,39 @@ const WhatIfSimulator = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const formData = location.state?.formData || {};
+  const { user } = useAuth();
 
-  const [income, setIncome] = useState(formData.annualSalary || 1200000);
+  const [income, setIncome] = useState(formData.annualSalary || 0);
   const [d80C, setD80C] = useState(formData.deduction80C || 0);
   const [d80D, setD80D] = useState(formData.deduction80D || 0);
   const [dNPS, setDNPS] = useState(formData.deductionNPS || 0);
   const [dHRA, setDHRA] = useState(formData.hraDeduction || 0);
   const [homeLoan, setHomeLoan] = useState(0);
   const [salaried, setSalaried] = useState(true);
+
+  // Load profile from backend if no formData passed
+  React.useEffect(() => {
+    if (income > 0) return; // already have data
+    if (!user) return;
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+    fetch(`${BACKEND_URL}/api/profile/load/${user.id}`)
+      .then(r => r.json())
+      .then(data => {
+        const inc = data?.income;
+        if (!inc) return;
+        const rnd = v => Math.round(Number(v) || 0);
+        setIncome(rnd(inc.gross_salary));
+        setD80C(rnd(inc.section_80c));
+        setD80D(rnd(inc.section_80d));
+        setDNPS(rnd(inc.nps_personal));
+        setDHRA(rnd(inc.hra_deduction || inc.hra_received));
+        const profile = data?.user;
+        if (profile?.employment_type) {
+          setSalaried(['Salaried','Government'].includes(profile.employment_type));
+        }
+      })
+      .catch(() => {});
+  }, [user]);
 
   const results = useMemo(() => {
     const stdOld = salaried ? 50000 : 0;

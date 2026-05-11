@@ -78,12 +78,15 @@ const IncomeModal = ({ open, onCancel, onSuccess }) => {
         updated_at       : new Date().toISOString(),
       };
 
-      const { error } = await supabase
-        .from('income_profile')
-        .upsert(payload, { onConflict: 'user_id' });
+      // Save via backend (service role — bypasses RLS)
+      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+      const saveRes = await fetch(`${BACKEND_URL}/api/profile/save-income`, {
+        method : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify({ userId: user.id, incomePayload: payload }),
+      }).then(r => r.json());
 
-      // FIX: only show success when DB write confirmed (response.ok)
-      if (error) throw new Error(error.message);
+      if (saveRes?.error) throw new Error(saveRes.error);
 
       markIncomeDataSaved();
       message.success('✅ Details saved successfully');

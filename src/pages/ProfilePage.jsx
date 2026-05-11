@@ -114,15 +114,16 @@ const ProfilePage = () => {
           const res  = await fetch(`${BACKEND_URL}/api/profile/load/${user.id}`);
           const data = await res.json();
           const inc  = data?.income || null;
+          const rnd  = (v) => Math.round(Number(v) || 0);
           if (inc) {
             incomeForm.setFieldsValue({
-              annualSalary    : inc.gross_salary      || 0,
-              bonus           : inc.bonus             || 0,
-              otherIncome     : inc.other_income      || 0,
-              deduction80C    : inc.section_80c       || 0,
-              deduction80D    : inc.section_80d       || 0,
-              deductionNPS    : inc.nps_personal      || 0,
-              hraDeduction    : inc.hra_deduction     || inc.hra_received || 0,
+              annualSalary    : rnd(inc.gross_salary),
+              bonus           : rnd(inc.bonus),
+              otherIncome     : rnd(inc.other_income),
+              deduction80C    : rnd(inc.section_80c),
+              deduction80D    : rnd(inc.section_80d),
+              deductionNPS    : rnd(inc.nps_personal),
+              hraDeduction    : rnd(inc.hra_deduction || inc.hra_received),
               regimePreference: inc.preferred_regime  || 'Auto Suggest',
             });
           }
