@@ -215,10 +215,7 @@ Answer in 3-5 sentences. Be specific with numbers from the user's profile. Use I
 
       // Step 3: Call Gemini from browser (no region restriction)
       const reply = await callGeminiFrontend(prompt);
-      const result = { success: true, message: reply };
-      const reply       = result.answer || result.message || 'I could not process that. Please try again.';
-      const actionCards = result.action_cards || [];
-      setMessages(prev => [...prev, { role: 'bot', text: reply, actionCards }]);
+      setMessages(prev => [...prev, { role: 'bot', text: reply, actionCards: [] }]);
     } catch (err) {
       setMessages(prev => [...prev, {
         role: 'bot',
