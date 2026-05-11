@@ -2,7 +2,34 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Typography } from 'antd';
 import { RobotOutlined, SendOutlined, DeleteOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext';
-import { askAgent, clearAgentHistory } from '../config/api';
+import { clearAgentHistory } from '../config/api';
+
+// ── Call Gemini directly from browser (avoids server region restrictions) ──
+const callGeminiFrontend = async (prompt) => {
+  const key = import.meta.env.VITE_GEMINI_API_KEY;
+  const models = ['gemini-2.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-2.5-flash'];
+  for (const model of models) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+        {
+          method : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body   : JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.4, maxOutputTokens: 1024 }
+          }),
+        }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        if (text) return text;
+      }
+    } catch {}
+  }
+  throw new Error('AI service unavailable. Please try again.');
+};
 
 const { Text } = Typography;
 
@@ -146,7 +173,49 @@ const TaxAssistantChatbot = () => {
     setLoading(true);
     try {
       if (!user) throw new Error('Please login to use the AI assistant.');
-      const result      = await askAgent(user.id, text);
+      // Step 1: Get RAG context from backend (KB search + profile)
+      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+      const ctxRes  = await fetch(`${BACKEND_URL}/api/agent/search`, {
+        method : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify({ userId: user.id, message: text }),
+      });
+      const ctx = ctxRes.ok ? await ctxRes.json() : {};
+
+      // Step 2: Build prompt with RAG context
+      const profile = ctx.userProfile || {};
+      const income  = ctx.incomeData  || {};
+      const tax     = ctx.taxResult   || {};
+      const prompt  = `You are DrainZero, an expert Indian tax advisor for FY 2025-26.
+
+USER PROFILE:
+Name: ${profile.name || 'User'}, Employment: ${profile.employment_type || 'Unknown'}, City: ${profile.city || ''}, State: ${profile.state || ''}
+
+INCOME & DEDUCTIONS:
+Gross Salary: ₹${(income.gross_salary || 0).toLocaleString('en-IN')}
+Section 80C: ₹${(income.section_80c || 0).toLocaleString('en-IN')}
+Section 80D: ₹${(income.section_80d || 0).toLocaleString('en-IN')}
+NPS 80CCD(1B): ₹${(income.nps_personal || 0).toLocaleString('en-IN')}
+HRA: ₹${(income.hra_deduction || 0).toLocaleString('en-IN')}
+Preferred Regime: ${income.preferred_regime || 'Auto Suggest'}
+
+TAX ANALYSIS:
+Old Regime Tax: ₹${(tax.old_tax || 0).toLocaleString('en-IN')}
+New Regime Tax: ₹${(tax.new_tax || 0).toLocaleString('en-IN')}
+Recommended: ${tax.recommended_regime || 'N/A'}
+Annual Saving: ₹${(tax.saving || 0).toLocaleString('en-IN')}
+Health Score: ${tax.health_score || 'N/A'}/100
+
+RELEVANT TAX KNOWLEDGE (RAG):
+${ctx.kbContext || 'No specific knowledge base match found.'}
+
+USER QUESTION: ${text}
+
+Answer in 3-5 sentences. Be specific with numbers from the user's profile. Use Indian tax terminology. End with one actionable tip.`;
+
+      // Step 3: Call Gemini from browser (no region restriction)
+      const reply = await callGeminiFrontend(prompt);
+      const result = { success: true, message: reply };
       const reply       = result.answer || result.message || 'I could not process that. Please try again.';
       const actionCards = result.action_cards || [];
       setMessages(prev => [...prev, { role: 'bot', text: reply, actionCards }]);
